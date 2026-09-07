@@ -48,9 +48,43 @@
       <button type="button" class="tab" role="tab" aria-selected="false" data-tab="address">
         Address
       </button>
+      <button type="button" class="tab" role="tab" aria-selected="false" data-tab="more">
+        More
+      </button>
     </nav>
 
-    <main class="main">
+    <div class="unlock-gate" id="unlockGate" hidden>
+      <p class="unlock-title">Profile locked</p>
+      <p class="unlock-body">
+        Enter your passphrase to unlock FoxFill for this browser session.
+      </p>
+      <label class="unlock-label">
+        Passphrase
+        <span class="pw-field">
+          <input type="password" id="unlockPassphrase" autocomplete="current-password" />
+          <button type="button" class="pw-toggle" data-pw-target="unlockPassphrase" aria-label="Show passphrase">
+            Show
+          </button>
+        </span>
+      </label>
+      <button type="button" class="btn-primary" id="unlockBtn">Unlock</button>
+
+      <div class="unlock-recover" id="unlockRecover">
+        <p class="more-copy">Forgot passphrase? Unlock with your saved profile email.</p>
+        <label class="unlock-label">
+          Recovery email
+          <input type="email" id="unlockRecoveryEmail" autocomplete="email" placeholder="name@example.com" />
+        </label>
+        <button type="button" class="profile-btn" id="recoverBtn">Recover with email</button>
+      </div>
+
+      <button type="button" class="profile-btn danger-btn" id="resetVaultBtn">
+        Reset vault (erase encrypted data)…
+      </button>
+      <p class="error" id="unlockError" hidden></p>
+    </div>
+
+    <main class="main" id="appMain">
       <section class="panel is-active" id="panel-scan" data-panel="scan">
         <p class="status" id="status" role="status" aria-live="polite">
           Open a webpage with a form, then scan.
@@ -204,6 +238,84 @@
           Suburb + province matter for local address fields.
         </p>
       </section>
+
+      <section class="panel" id="panel-more" data-panel="more" hidden>
+        <div class="more-block">
+          <h2 class="more-heading">Custom fields</h2>
+          <p class="more-copy">
+            Extra profile values (policy number, employee no, etc.) matched by
+            label aliases on forms.
+          </p>
+          <ul class="custom-list" id="customFieldList"></ul>
+          <form id="customFieldForm" class="profile-form custom-form" autocomplete="off">
+            <label>Label <input name="label" type="text" placeholder="Policy number" required /></label>
+            <label>
+              Aliases
+              <input
+                name="aliases"
+                type="text"
+                placeholder="policy no, policy #"
+              />
+            </label>
+            <label>Value <input name="value" type="text" /></label>
+            <button type="submit" class="btn-primary">Add custom field</button>
+          </form>
+          <p class="save-msg" id="customSaveMsg" hidden>Custom fields saved.</p>
+        </div>
+
+        <div class="more-block">
+          <h2 class="more-heading">Privacy</h2>
+          <p class="more-copy" id="encryptionStatus">
+            Profiles are stored locally without a passphrase.
+          </p>
+          <div id="encryptionOffControls">
+            <label class="unlock-label">
+              New passphrase
+              <span class="pw-field">
+                <input type="password" id="enablePassphrase" autocomplete="new-password" />
+                <button type="button" class="pw-toggle" data-pw-target="enablePassphrase" aria-label="Show passphrase">
+                  Show
+                </button>
+              </span>
+            </label>
+            <label class="unlock-label">
+              Confirm passphrase
+              <span class="pw-field">
+                <input type="password" id="enablePassphrase2" autocomplete="new-password" />
+                <button type="button" class="pw-toggle" data-pw-target="enablePassphrase2" aria-label="Show passphrase">
+                  Show
+                </button>
+              </span>
+            </label>
+            <label class="unlock-label">
+              Recovery email
+              <input
+                type="email"
+                id="enableRecoveryEmail"
+                autocomplete="email"
+                placeholder="Must match a profile email"
+              />
+            </label>
+            <button type="button" class="btn-primary" id="enableEncryptionBtn">
+              Enable encryption
+            </button>
+          </div>
+          <div id="encryptionOnControls" hidden>
+            <button type="button" class="btn-primary" id="lockNowBtn">
+              Lock now
+            </button>
+            <button type="button" class="profile-btn danger-btn" id="disableEncryptionBtn">
+              Turn off encryption…
+            </button>
+          </div>
+          <p class="error" id="encryptionError" hidden></p>
+          <p class="profile-hint">
+            Encryption uses AES-GCM on this device. If you forget the passphrase,
+            unlock with the recovery email you set (usually your profile email).
+            Last resort: reset the vault (erases encrypted profiles).
+          </p>
+        </div>
+      </section>
     </main>
 
     <footer class="footer">
@@ -219,6 +331,7 @@
     <script src="../data/phoneParse.js"></script>
     <script src="../data/dateFormat.js"></script>
     <script src="../data/fitValue.js"></script>
+    <script src="../data/crypto.js"></script>
     <script src="../data/profiles.js"></script>
     <script src="../content/compound.js"></script>
     <script src="popup.js"></script>

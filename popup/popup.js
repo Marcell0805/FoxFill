@@ -1,5 +1,5 @@
 /**
- * FoxFill popup — Phase 8: multi-profile + review polish.
+ * FoxFill popup — Phase 8b: multi-profile, custom fields, encryption at rest.
  */
 
 const scanBtn = document.getElementById("scanBtn");
@@ -26,6 +26,26 @@ const personalForm = document.getElementById("personalForm");
 const addressForm = document.getElementById("addressForm");
 const personalSaveMsg = document.getElementById("personalSaveMsg");
 const addressSaveMsg = document.getElementById("addressSaveMsg");
+const unlockGate = document.getElementById("unlockGate");
+const unlockPassphrase = document.getElementById("unlockPassphrase");
+const unlockBtn = document.getElementById("unlockBtn");
+const unlockError = document.getElementById("unlockError");
+const unlockRecoveryEmail = document.getElementById("unlockRecoveryEmail");
+const recoverBtn = document.getElementById("recoverBtn");
+const resetVaultBtn = document.getElementById("resetVaultBtn");
+const customFieldList = document.getElementById("customFieldList");
+const customFieldForm = document.getElementById("customFieldForm");
+const customSaveMsg = document.getElementById("customSaveMsg");
+const encryptionStatus = document.getElementById("encryptionStatus");
+const encryptionOffControls = document.getElementById("encryptionOffControls");
+const encryptionOnControls = document.getElementById("encryptionOnControls");
+const enablePassphrase = document.getElementById("enablePassphrase");
+const enablePassphrase2 = document.getElementById("enablePassphrase2");
+const enableRecoveryEmail = document.getElementById("enableRecoveryEmail");
+const enableEncryptionBtn = document.getElementById("enableEncryptionBtn");
+const disableEncryptionBtn = document.getElementById("disableEncryptionBtn");
+const lockNowBtn = document.getElementById("lockNowBtn");
+const encryptionError = document.getElementById("encryptionError");
 
 const PROFILE_KEYS = [
   "title",
@@ -58,8 +78,14 @@ const RESTRICTED_PREFIXES = [
 /** @type {Record<string, string>} */
 let profile = emptyProfile();
 
+/** @type {Array<{id:string,label:string,aliases:string[],value:string}>} */
+let customFields = [];
+
 /** @type {object|null} */
 let profileStore = null;
+
+/** @type {boolean} */
+let vaultLocked = false;
 
 /** @type {object[]|null} */
 let lastMatches = null;
@@ -91,7 +117,12 @@ function setStatus(message, kind) {
 }
 
 function profileFilledCount() {
-  return PROFILE_KEYS.filter((key) => String(profile[key] || "").trim()).length;
+  const builtIn = PROFILE_KEYS.filter((key) =>
+    String(profile[key] || "").trim()
+  ).length;
+  const custom = customFields.filter((cf) => String(cf.value || "").trim())
+    .length;
+  return builtIn + custom;
 }
 
 function isProfileThin() {
@@ -169,6 +200,11 @@ function resolvedFillValue(match) {
     return String(match.fillValue).trim();
   }
   if (match.profileKey === "phoneCountryCode") return "";
+  if (match.profileKey && String(match.profileKey).startsWith("custom:")) {
+    const id = String(match.profileKey).slice("custom:".length);
+    const cf = customFields.find((item) => item.id === id);
+    return cf ? String(cf.value || "").trim() : "";
+  }
   if (match.profileKey && profile[match.profileKey]) {
     return String(profile[match.profileKey] || "").trim();
   }
@@ -676,18 +712,58 @@ function readFormIntoProfile(form) {
 populateDobSelects();
 
 async function loadProfile() {
+  // Never show the lock gate unless encryption is actually on and locked.
+  setLockedUi(false);
+  vaultLocked = false;
+
   if (typeof FoxFillProfiles === "undefined") {
     profile = emptyProfile();
+    customFields = [];
     return;
   }
-  profileStore = await FoxFillProfiles.loadStore(PROFILE_KEYS);
-  const active = FoxFillProfiles.getActive(profileStore);
-  profile = { ...emptyProfile(), ...(active?.data || {}) };
-  renderProfileSelect();
-  fillFormsFromProfile();
-  updateProfileNudge();
-  if (lastMatches) {
-    refreshMatchesForActiveProfile();
+
+  try {
+    const peek = await FoxFillProfiles.peekEncryption();
+    if (!peek.encrypted) {
+      profileStore = await FoxFillProfiles.loadStore(PROFILE_KEYS);
+      vaultLocked = false;
+      setLockedUi(false);
+      applyActiveProfileToUi();
+      renderProfileSelect();
+      renderCustomFields();
+      updateEncryptionUi();
+      return;
+    }
+
+    // Encrypted at rest — try this browser session first (no re-prompt).
+    profileStore = await FoxFillProfiles.loadStore(PROFILE_KEYS);
+    vaultLocked = false;
+    setLockedUi(false);
+    applyActiveProfileToUi();
+    renderProfileSelect();
+    renderCustomFields();
+    updateEncryptionUi();
+  } catch (err) {
+    if (err?.code === "LOCKED") {
+      vaultLocked = true;
+      setLockedUi(true);
+      if (unlockPassphrase) unlockPassphrase.value = "";
+      return;
+    }
+    console.error("FoxFill load error:", err);
+    setError("Couldn’t load profiles from local storage.");
+    setLockedUi(false);
+  }
+}
+
+function setLockedUi(locked) {
+  document.body.classList.toggle("is-locked", Boolean(locked));
+  if (unlockGate) {
+    unlockGate.hidden = !locked;
+  }
+  if (!locked && unlockError) {
+    unlockError.hidden = true;
+    unlockError.textContent = "";
   }
 }
 
@@ -710,17 +786,8 @@ function renderProfileSelect() {
   }
 }
 
-function applyActiveProfileToUi() {
-  const active = FoxFillProfiles.getActive(profileStore);
-  profile = { ...emptyProfile(), ...(active?.data || {}) };
-  fillFormsFromProfile();
-  updateProfileNudge();
-  refreshMatchesForActiveProfile();
-}
-
 function refreshMatchesForActiveProfile() {
   if (!lastMatches) return;
-  // Re-run compounds per frame using current profile values.
   const byFrame = new Map();
   for (const m of lastMatches) {
     const fid = m.frameId ?? 0;
@@ -736,7 +803,10 @@ function refreshMatchesForActiveProfile() {
       frameId,
       compound: undefined,
       fillMode: undefined,
-      fillValue: m.profileKey === "phone" ? undefined : m.fillValue,
+      fillValue:
+        m.profileKey === "phone" || String(m.profileKey || "").startsWith("custom:")
+          ? undefined
+          : m.fillValue,
     }));
     if (typeof FoxFillApplyPhoneCompounds === "function") {
       local = FoxFillApplyPhoneCompounds(local, {
@@ -770,9 +840,32 @@ function refreshMatchesForActiveProfile() {
   renderMatches(lastMatches);
 }
 
+function applyActiveProfileToUi() {
+  const active = FoxFillProfiles.getActive(profileStore);
+  profile = { ...emptyProfile(), ...(active?.data || {}) };
+  customFields = FoxFillProfiles.normalizeCustomFields(
+    active?.customFields || []
+  );
+  fillFormsFromProfile();
+  renderCustomFields();
+  updateProfileNudge();
+  updateEncryptionUi();
+  refreshMatchesForActiveProfile();
+}
+
 async function persistStore() {
   if (!profileStore || typeof FoxFillProfiles === "undefined") return;
   await FoxFillProfiles.saveStore(profileStore);
+}
+
+function syncActiveIntoStore() {
+  if (!profileStore || typeof FoxFillProfiles === "undefined") return;
+  FoxFillProfiles.upsertActiveData(
+    profileStore,
+    profile,
+    PROFILE_KEYS,
+    customFields
+  );
 }
 
 async function saveProfile(fromForm, msgEl) {
@@ -780,10 +873,8 @@ async function saveProfile(fromForm, msgEl) {
   readFormIntoProfile(
     fromForm === personalForm ? addressForm : personalForm
   );
-  if (profileStore && typeof FoxFillProfiles !== "undefined") {
-    FoxFillProfiles.upsertActiveData(profileStore, profile, PROFILE_KEYS);
-    await persistStore();
-  }
+  syncActiveIntoStore();
+  await persistStore();
   msgEl.hidden = false;
   window.setTimeout(() => {
     msgEl.hidden = true;
@@ -794,10 +885,9 @@ async function saveProfile(fromForm, msgEl) {
 
 async function switchProfile(profileId) {
   if (!profileStore || typeof FoxFillProfiles === "undefined") return;
-  // Keep unsaved form edits on the outgoing profile
   readFormIntoProfile(personalForm);
   readFormIntoProfile(addressForm);
-  FoxFillProfiles.upsertActiveData(profileStore, profile, PROFILE_KEYS);
+  syncActiveIntoStore();
   FoxFillProfiles.setActive(profileStore, profileId);
   await persistStore();
   applyActiveProfileToUi();
@@ -814,7 +904,7 @@ async function createProfile() {
 
   readFormIntoProfile(personalForm);
   readFormIntoProfile(addressForm);
-  FoxFillProfiles.upsertActiveData(profileStore, profile, PROFILE_KEYS);
+  syncActiveIntoStore();
 
   const copy = window.confirm(
     `Copy details from “${activeProfileName()}” into the new profile?\n\nOK = copy · Cancel = start blank`
@@ -854,11 +944,7 @@ async function deleteActiveProfile() {
     `Delete profile “${active.name}”? This can’t be undone.`
   );
   if (!ok) return;
-  const result = FoxFillProfiles.deleteProfile(
-    profileStore,
-    active.id,
-    PROFILE_KEYS
-  );
+  const result = FoxFillProfiles.deleteProfile(profileStore, active.id);
   if (!result.ok) {
     setError("Couldn’t delete that profile.");
     return;
@@ -888,6 +974,384 @@ function setupProfileControls() {
   if (profileDeleteBtn) {
     profileDeleteBtn.addEventListener("click", () => {
       void deleteActiveProfile();
+    });
+  }
+}
+
+function setEncryptionError(message) {
+  if (!encryptionError) return;
+  encryptionError.hidden = !message;
+  encryptionError.textContent = message || "";
+}
+
+function updateEncryptionUi() {
+  const enabled = Boolean(profileStore?.encryptionEnabled);
+  if (encryptionStatus) {
+    encryptionStatus.textContent = enabled
+      ? "Profiles are encrypted on this device. Unlock lasts for this browser session."
+      : "Profiles are stored locally without a passphrase.";
+  }
+  if (encryptionOffControls) encryptionOffControls.hidden = enabled;
+  if (encryptionOnControls) encryptionOnControls.hidden = !enabled;
+  if (enableRecoveryEmail && !enableRecoveryEmail.value && profile.email) {
+    enableRecoveryEmail.value = profile.email;
+  }
+}
+
+function renderCustomFields() {
+  if (!customFieldList) return;
+  customFieldList.innerHTML = "";
+  if (!customFields.length) {
+    const empty = document.createElement("li");
+    empty.className = "more-copy";
+    empty.textContent = "No custom fields yet.";
+    customFieldList.append(empty);
+    return;
+  }
+
+  for (const cf of customFields) {
+    const li = document.createElement("li");
+    li.className = "custom-item";
+    li.dataset.id = cf.id;
+
+    const top = document.createElement("div");
+    top.className = "custom-item-top";
+
+    const label = document.createElement("span");
+    label.className = "custom-item-label";
+    label.textContent = cf.label;
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "custom-item-remove";
+    remove.textContent = "Remove";
+    remove.addEventListener("click", () => {
+      void removeCustomField(cf.id);
+    });
+
+    top.append(label, remove);
+
+    const valueInput = document.createElement("input");
+    valueInput.type = "text";
+    valueInput.value = cf.value || "";
+    valueInput.placeholder = "Value";
+    valueInput.addEventListener("change", () => {
+      cf.value = valueInput.value;
+      void saveCustomFields();
+    });
+
+    const aliasInput = document.createElement("input");
+    aliasInput.type = "text";
+    aliasInput.value = (cf.aliases || []).join(", ");
+    aliasInput.placeholder = "Aliases, comma-separated";
+    aliasInput.addEventListener("change", () => {
+      cf.aliases = aliasInput.value
+        .split(",")
+        .map((a) => a.trim())
+        .filter(Boolean);
+      void saveCustomFields();
+    });
+
+    li.append(top, valueInput, aliasInput);
+    customFieldList.append(li);
+  }
+}
+
+async function saveCustomFields() {
+  syncActiveIntoStore();
+  await persistStore();
+  if (customSaveMsg) {
+    customSaveMsg.hidden = false;
+    window.setTimeout(() => {
+      customSaveMsg.hidden = true;
+    }, 1200);
+  }
+  refreshMatchesForActiveProfile();
+}
+
+async function removeCustomField(id) {
+  customFields = customFields.filter((cf) => cf.id !== id);
+  await saveCustomFields();
+  renderCustomFields();
+}
+
+async function addCustomField(event) {
+  event.preventDefault();
+  if (!customFieldForm) return;
+  const data = new FormData(customFieldForm);
+  const label = String(data.get("label") || "").trim();
+  if (!label) return;
+  const aliases = String(data.get("aliases") || "")
+    .split(",")
+    .map((a) => a.trim())
+    .filter(Boolean);
+  const value = String(data.get("value") || "").trim();
+  const id =
+    globalThis.crypto?.randomUUID?.() ||
+    `cf_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+  customFields.push({ id, label, aliases, value });
+  customFieldForm.reset();
+  renderCustomFields();
+  await saveCustomFields();
+}
+
+async function unlockVault() {
+  if (!unlockPassphrase) return;
+  const passphrase = unlockPassphrase.value;
+  if (!passphrase) {
+    if (unlockError) {
+      unlockError.hidden = false;
+      unlockError.textContent = "Enter your passphrase.";
+    }
+    return;
+  }
+  try {
+    profileStore = await FoxFillProfiles.loadStore(PROFILE_KEYS, {
+      passphrase,
+    });
+    vaultLocked = false;
+    setLockedUi(false);
+    unlockPassphrase.value = "";
+    applyActiveProfileToUi();
+    renderProfileSelect();
+    setStatus("Unlocked for this browser session.", "is-success");
+  } catch (err) {
+    if (unlockError) {
+      unlockError.hidden = false;
+      unlockError.textContent =
+        err?.message === "Wrong passphrase"
+          ? "Wrong passphrase."
+          : "Couldn’t unlock. Try again.";
+    }
+  }
+}
+
+async function recoverWithEmail() {
+  const email = unlockRecoveryEmail?.value || "";
+  if (!email.trim()) {
+    if (unlockError) {
+      unlockError.hidden = false;
+      unlockError.textContent = "Enter the recovery email.";
+    }
+    return;
+  }
+  try {
+    profileStore = await FoxFillProfiles.loadStore(PROFILE_KEYS, {
+      recoveryEmail: email,
+    });
+    vaultLocked = false;
+    setLockedUi(false);
+    applyActiveProfileToUi();
+    renderProfileSelect();
+
+    // After email recovery, require a new passphrase (old one may be lost).
+    const next = window.prompt(
+      "Recovery worked. Set a new passphrase (min 6 characters):"
+    );
+    if (next && next.length >= 6) {
+      const confirmNext = window.prompt("Confirm new passphrase:");
+      if (confirmNext === next) {
+        profileStore.encryptionEnabled = true;
+        await FoxFillProfiles.saveStore(profileStore, {
+          passphrase: next,
+          recoveryEmail:
+            profile.email || FoxFillCrypto.normalizeEmail(email),
+        });
+        setStatus("Recovered — new passphrase saved for this session.", "is-success");
+      } else {
+        profileStore.encryptionEnabled = false;
+        await FoxFillProfiles.saveStore(profileStore);
+        setStatus(
+          "Recovered. Passphrases didn’t match — encryption turned off for now.",
+          "is-empty"
+        );
+      }
+    } else {
+      profileStore.encryptionEnabled = false;
+      await FoxFillProfiles.saveStore(profileStore);
+      setStatus(
+        "Recovered. Encryption turned off — re-enable under More when ready.",
+        "is-empty"
+      );
+    }
+    updateEncryptionUi();
+    if (unlockRecoveryEmail) unlockRecoveryEmail.value = "";
+  } catch (err) {
+    if (unlockError) {
+      unlockError.hidden = false;
+      unlockError.textContent =
+        err?.message ||
+        "Recovery failed. Check the email, or reset the vault.";
+    }
+  }
+}
+
+async function resetVault() {
+  const ok = window.confirm(
+    "Erase the encrypted vault and start fresh?\n\nAll encrypted profiles will be deleted. This cannot be undone."
+  );
+  if (!ok) return;
+  const sure = window.confirm("Really wipe encrypted FoxFill data on this device?");
+  if (!sure) return;
+  try {
+    await chrome.storage.local.remove(FoxFillProfiles.STORE_KEY);
+    await FoxFillCrypto.clearSessionUnlocked();
+    profileStore = FoxFillProfiles.defaultStore(PROFILE_KEYS);
+    await FoxFillProfiles.saveStore(profileStore);
+    vaultLocked = false;
+    setLockedUi(false);
+    applyActiveProfileToUi();
+    renderProfileSelect();
+    setStatus("Vault reset. Add your details again under Personal.", "is-success");
+  } catch (err) {
+    if (unlockError) {
+      unlockError.hidden = false;
+      unlockError.textContent = err?.message || "Couldn’t reset vault.";
+    }
+  }
+}
+
+async function enableEncryption() {
+  setEncryptionError("");
+  const a = enablePassphrase?.value || "";
+  const b = enablePassphrase2?.value || "";
+  const recovery =
+    enableRecoveryEmail?.value?.trim() ||
+    profile.email ||
+    "";
+  if (a.length < 6) {
+    setEncryptionError("Use at least 6 characters.");
+    return;
+  }
+  if (a !== b) {
+    setEncryptionError("Passphrases don’t match.");
+    return;
+  }
+  if (!recovery || !recovery.includes("@")) {
+    setEncryptionError(
+      "Add a recovery email (use your profile email) before enabling encryption."
+    );
+    return;
+  }
+  readFormIntoProfile(personalForm);
+  readFormIntoProfile(addressForm);
+  syncActiveIntoStore();
+  profileStore.encryptionEnabled = true;
+  try {
+    await FoxFillProfiles.saveStore(profileStore, {
+      passphrase: a,
+      recoveryEmail: recovery,
+    });
+    if (enablePassphrase) enablePassphrase.value = "";
+    if (enablePassphrase2) enablePassphrase2.value = "";
+    updateEncryptionUi();
+    setStatus("Encryption enabled (email recovery on).", "is-success");
+  } catch (err) {
+    profileStore.encryptionEnabled = false;
+    setEncryptionError(err?.message || "Couldn’t enable encryption.");
+  }
+}
+
+async function disableEncryption() {
+  setEncryptionError("");
+  const passphrase = window.prompt(
+    "Enter your passphrase to turn off encryption"
+  );
+  if (passphrase == null) return;
+  try {
+    // Ensure we can decrypt with provided passphrase
+    const peek = await FoxFillProfiles.peekEncryption();
+    if (peek.encrypted) {
+      await FoxFillCrypto.decryptStore(peek.envelope, passphrase);
+    }
+    profileStore.encryptionEnabled = false;
+    await FoxFillProfiles.saveStore(profileStore);
+    await FoxFillCrypto.clearSessionUnlocked();
+    updateEncryptionUi();
+    setStatus("Encryption turned off. Data stays local.", "is-success");
+  } catch {
+    setEncryptionError("Wrong passphrase — encryption stays on.");
+  }
+}
+
+async function lockNow() {
+  syncActiveIntoStore();
+  try {
+    await persistStore();
+  } catch {
+    // still lock
+  }
+  await FoxFillCrypto.clearSessionUnlocked();
+  lastMatches = null;
+  clearReview();
+  vaultLocked = true;
+  setLockedUi(true);
+}
+
+function activeCustomPatterns() {
+  if (typeof FoxFillProfiles === "undefined") return [];
+  return FoxFillProfiles.customPatternsFromFields(customFields);
+}
+
+function setupPasswordToggles() {
+  document.querySelectorAll(".pw-toggle").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-pw-target");
+      const input = id ? document.getElementById(id) : null;
+      if (!input) return;
+      const show = input.type === "password";
+      input.type = show ? "text" : "password";
+      btn.textContent = show ? "Hide" : "Show";
+      btn.setAttribute("aria-label", show ? "Hide passphrase" : "Show passphrase");
+    });
+  });
+}
+
+function setupMoreControls() {
+  setupPasswordToggles();
+  if (customFieldForm) {
+    customFieldForm.addEventListener("submit", (event) => {
+      void addCustomField(event);
+    });
+  }
+  if (unlockBtn) {
+    unlockBtn.addEventListener("click", () => {
+      void unlockVault();
+    });
+  }
+  if (unlockPassphrase) {
+    unlockPassphrase.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") void unlockVault();
+    });
+  }
+  if (recoverBtn) {
+    recoverBtn.addEventListener("click", () => {
+      void recoverWithEmail();
+    });
+  }
+  if (unlockRecoveryEmail) {
+    unlockRecoveryEmail.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") void recoverWithEmail();
+    });
+  }
+  if (resetVaultBtn) {
+    resetVaultBtn.addEventListener("click", () => {
+      void resetVault();
+    });
+  }
+  if (enableEncryptionBtn) {
+    enableEncryptionBtn.addEventListener("click", () => {
+      void enableEncryption();
+    });
+  }
+  if (disableEncryptionBtn) {
+    disableEncryptionBtn.addEventListener("click", () => {
+      void disableEncryption();
+    });
+  }
+  if (lockNowBtn) {
+    lockNowBtn.addEventListener("click", () => {
+      void lockNow();
     });
   }
 }
@@ -1002,7 +1466,7 @@ async function scanActiveTab() {
       return;
     }
 
-    const results = await chrome.scripting.executeScript({
+    await chrome.scripting.executeScript({
       target: { tabId: tab.id, allFrames: true },
       files: [
         "data/fieldPatterns.js",
@@ -1010,8 +1474,26 @@ async function scanActiveTab() {
         "data/dateFormat.js",
         "data/fitValue.js",
         "content/matcher.js",
-        "content/scanner.js",
       ],
+    });
+
+    const customPatterns = activeCustomPatterns();
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id, allFrames: true },
+      func: (patterns) => {
+        const bag = globalThis.FoxFillFieldPatterns;
+        if (!bag || !Array.isArray(bag.fields)) return;
+        bag.fields = bag.fields.filter((f) => !f.custom);
+        if (Array.isArray(patterns) && patterns.length) {
+          bag.fields.push(...patterns);
+        }
+      },
+      args: [customPatterns],
+    });
+
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id, allFrames: true },
+      files: ["content/scanner.js"],
     });
 
     const collected = collectMatchesFromFrames(results);
@@ -1277,5 +1759,6 @@ addressForm.addEventListener("submit", (event) => {
 
 setupTabs();
 setupProfileControls();
+setupMoreControls();
 updateFillButton();
 void loadProfile();

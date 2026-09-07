@@ -69,7 +69,7 @@ Plain modular JavaScript (Manifest V3). No build step for V1.
 **Personal:** `title`, `firstName`, `lastName`, `idNumber`, `email`, `phone`, `dateOfBirth`  
 **Address:** `residenceType`, `addressLine1`, `addressLine2`, `suburb`, `city`, `province`, `postalCode`, `country`
 
-Profiles are named and stored locally (`foxfillStore`). Legacy single-profile data migrates automatically. Matcher owns international aliases (state/region, zip/postcode, neighborhood, etc.).
+Profiles are named and stored locally (`foxfillStore`). Legacy single-profile data migrates automatically. Optional **passphrase encryption** (AES-GCM) locks the store at rest. **Custom fields** live on each profile and are injected into matching at scan time. Matcher owns international aliases (state/region, zip/postcode, neighborhood, etc.). Overlay remains out of scope (popup only).
 
 ## Matching engine contract
 
@@ -107,7 +107,8 @@ Profiles are named and stored locally (`foxfillStore`). Legacy single-profile da
 | **6+ Profile extras** | Title, ID number, residence type, constraint-aware phone/DOB | Done |
 | **7 Polish** | Empty states, errors, motion, clearer review values | Done |
 | **8 Multi-profile** | Named local profiles (switch / new / rename / delete) | Done |
-| **8b Later** | Encryption at rest, custom fields, optional overlay | Later |
+| **8b Privacy & custom** | Passphrase encryption at rest + custom fields | Done |
+| **Later** | Optional overlay (popup-only remains locked) | Later |
 
 ## Out of scope (until later)
 
