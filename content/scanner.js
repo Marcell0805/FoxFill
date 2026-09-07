@@ -188,6 +188,47 @@
     return preferred || candidates[0] || "";
   }
 
+  function checkedRadioContext(el) {
+    // Stay local — walking up to <form> contaminated sibling fields
+    // (e.g. years-with-insurer) with "ID number" radio text.
+    const roots = [
+      el.parentElement,
+      el.parentElement?.parentElement,
+      el.closest("fieldset"),
+      el.closest("[role='group']"),
+    ].filter(Boolean);
+
+    const bits = [];
+    const seen = new Set();
+
+    for (const root of roots) {
+      if (seen.has(root)) continue;
+      seen.add(root);
+      // Only consider radios that share this tight container with el
+      if (!root.contains(el)) continue;
+      const radios = root.querySelectorAll('input[type="radio"]');
+      if (!radios.length) continue;
+      // Prefer containers that look like the ID/passport toggle, not the whole page
+      const rootText = cleanText(root.textContent).slice(0, 200);
+      if (
+        !/\b(id number|passport number|rsa id|sa id)\b/i.test(rootText) ||
+        rootText.length > 280
+      ) {
+        continue;
+      }
+      for (const radio of radios) {
+        if (!radio.checked) continue;
+        const text =
+          labelFromFor(radio) ||
+          labelFromWrap(radio) ||
+          cleanText(radio.getAttribute("aria-label") || "") ||
+          cleanText(radio.value || "");
+        if (text) bits.push(text);
+      }
+    }
+    return truncate(bits.filter(Boolean).join(" "), MAX_NEARBY);
+  }
+
   function nearbyText(el) {
     const bits = [];
 
@@ -227,6 +268,9 @@
       const legend = fieldset.querySelector(":scope > legend");
       if (legend) bits.push(cleanText(legend.textContent));
     }
+
+    const radioBits = checkedRadioContext(el);
+    if (radioBits) bits.push(radioBits);
 
     return truncate(bits.filter(Boolean).join(" "), MAX_NEARBY);
   }
@@ -434,6 +478,10 @@
     fieldCount: fields.length,
     fields,
     matches,
+    frame: {
+      href: String(location.href || ""),
+      isTop: window === window.top,
+    },
     scannedAt: new Date().toISOString(),
   };
 })();

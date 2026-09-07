@@ -21,6 +21,21 @@
         </h1>
       </div>
       <p class="tagline">Your details. Less hassle.</p>
+      <div class="profile-bar" id="profileBar">
+        <label class="profile-bar-label" for="profileSelect">Profile</label>
+        <select id="profileSelect" class="profile-select" aria-label="Active profile"></select>
+        <div class="profile-actions">
+          <button type="button" class="profile-btn" id="profileNewBtn" title="New profile">
+            New
+          </button>
+          <button type="button" class="profile-btn" id="profileRenameBtn" title="Rename profile">
+            Rename
+          </button>
+          <button type="button" class="profile-btn" id="profileDeleteBtn" title="Delete profile">
+            Delete
+          </button>
+        </div>
+      </div>
     </header>
 
     <nav class="tabs" role="tablist" aria-label="FoxFill sections">
@@ -40,6 +55,22 @@
         <p class="status" id="status" role="status" aria-live="polite">
           Open a webpage with a form, then scan.
         </p>
+
+        <div class="empty-state" id="emptyState">
+          <p class="empty-title">Ready when you are</p>
+          <p class="empty-body">
+            Pick a profile above, save Personal and Address details, open a form
+            page, then hit Scan Form.
+          </p>
+        </div>
+
+        <div class="profile-nudge" id="profileNudge" hidden>
+          <p class="profile-nudge-text">
+            Your profile looks empty. Add details under
+            <button type="button" class="linkish" id="nudgePersonal">Personal</button>
+            before filling.
+          </p>
+        </div>
 
         <div class="summary" id="summary" hidden></div>
 
@@ -139,6 +170,9 @@
           <button type="submit" class="btn-primary">Save Profile</button>
         </form>
         <p class="save-msg" id="personalSaveMsg" hidden>Saved on this device.</p>
+        <p class="profile-hint" id="personalHint">
+          Tip: ID, phone, and title help SA quote forms match cleanly.
+        </p>
       </section>
 
       <section class="panel" id="panel-address" data-panel="address" hidden>
@@ -166,6 +200,9 @@
           <button type="submit" class="btn-primary">Save Profile</button>
         </form>
         <p class="save-msg" id="addressSaveMsg" hidden>Saved on this device.</p>
+        <p class="profile-hint" id="addressHint">
+          Suburb + province matter for local address fields.
+        </p>
       </section>
     </main>
 
@@ -182,6 +219,7 @@
     <script src="../data/phoneParse.js"></script>
     <script src="../data/dateFormat.js"></script>
     <script src="../data/fitValue.js"></script>
+    <script src="../data/profiles.js"></script>
     <script src="../content/compound.js"></script>
     <script src="popup.js"></script>
   </body>

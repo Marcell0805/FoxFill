@@ -1,8 +1,6 @@
 /**
- * FoxFill popup — Phase 6: grouped review UI with include toggles.
+ * FoxFill popup — Phase 8: multi-profile + review polish.
  */
-
-const STORAGE_KEY = "foxfillProfile";
 
 const scanBtn = document.getElementById("scanBtn");
 const fillBtn = document.getElementById("fillBtn");
@@ -10,6 +8,13 @@ const statusEl = document.getElementById("status");
 const summaryEl = document.getElementById("summary");
 const errorEl = document.getElementById("error");
 const reviewEl = document.getElementById("review");
+const emptyStateEl = document.getElementById("emptyState");
+const profileNudgeEl = document.getElementById("profileNudge");
+const nudgePersonalBtn = document.getElementById("nudgePersonal");
+const profileSelect = document.getElementById("profileSelect");
+const profileNewBtn = document.getElementById("profileNewBtn");
+const profileRenameBtn = document.getElementById("profileRenameBtn");
+const profileDeleteBtn = document.getElementById("profileDeleteBtn");
 const listWill = document.getElementById("listWill");
 const listReview = document.getElementById("listReview");
 const listUnmatched = document.getElementById("listUnmatched");
@@ -53,6 +58,9 @@ const RESTRICTED_PREFIXES = [
 /** @type {Record<string, string>} */
 let profile = emptyProfile();
 
+/** @type {object|null} */
+let profileStore = null;
+
 /** @type {object[]|null} */
 let lastMatches = null;
 
@@ -66,6 +74,11 @@ function emptyProfile() {
   return Object.fromEntries(PROFILE_KEYS.map((key) => [key, ""]));
 }
 
+function activeProfileName() {
+  const active = FoxFillProfiles?.getActive?.(profileStore);
+  return active?.name || "Personal";
+}
+
 function setError(message) {
   errorEl.hidden = !message;
   errorEl.textContent = message || "";
@@ -73,8 +86,73 @@ function setError(message) {
 
 function setStatus(message, kind) {
   statusEl.textContent = message;
-  statusEl.classList.remove("is-success", "is-empty");
+  statusEl.classList.remove("is-success", "is-empty", "is-error");
   if (kind) statusEl.classList.add(kind);
+}
+
+function profileFilledCount() {
+  return PROFILE_KEYS.filter((key) => String(profile[key] || "").trim()).length;
+}
+
+function isProfileThin() {
+  return profileFilledCount() < 2;
+}
+
+function showEmptyState(show, title, body) {
+  if (!emptyStateEl) return;
+  emptyStateEl.hidden = !show;
+  if (show) {
+    const titleEl = emptyStateEl.querySelector(".empty-title");
+    const bodyEl = emptyStateEl.querySelector(".empty-body");
+    if (titleEl) {
+      titleEl.textContent = title || "Ready when you are";
+    }
+    if (bodyEl) {
+      bodyEl.textContent =
+        body ||
+        "Pick a profile above, save Personal and Address details, open a form page, then hit Scan Form.";
+    }
+  }
+}
+
+function updateProfileNudge() {
+  if (!profileNudgeEl) return;
+  profileNudgeEl.hidden = !isProfileThin() || !lastMatches;
+}
+
+function restrictedPageMessage(url) {
+  const u = String(url || "");
+  if (u.startsWith("chrome://") || u.startsWith("edge://") || u.startsWith("about:")) {
+    return "This is a browser page. Open a normal website with a form, then scan.";
+  }
+  if (u.startsWith("chrome-extension://") || u.startsWith("devtools://")) {
+    return "FoxFill can’t scan extension or DevTools pages.";
+  }
+  if (
+    u.startsWith("https://chrome.google.com/webstore") ||
+    u.startsWith("https://chromewebstore.google.com")
+  ) {
+    return "Chrome Web Store pages can’t be scanned. Open your form site instead.";
+  }
+  if (u.startsWith("file:")) {
+    return "Local files sometimes block scripts. If scan fails, host the page or use a normal http(s) site.";
+  }
+  return "FoxFill can’t scan this page. Open a normal website and try again.";
+}
+
+function activateTab(id) {
+  const tabs = document.querySelectorAll(".tab");
+  const panels = document.querySelectorAll(".panel");
+  tabs.forEach((t) => {
+    const active = t.dataset.tab === id;
+    t.classList.toggle("is-active", active);
+    t.setAttribute("aria-selected", active ? "true" : "false");
+  });
+  panels.forEach((panel) => {
+    const active = panel.dataset.panel === id;
+    panel.classList.toggle("is-active", active);
+    panel.hidden = !active;
+  });
 }
 
 function isRestrictedUrl(url) {
@@ -113,11 +191,13 @@ function updateFillButton() {
   if (count === 0) {
     fillBtn.hidden = true;
     fillBtn.disabled = true;
+    fillBtn.classList.remove("is-ready");
     fillBtn.textContent = "Fill Fields";
     return;
   }
   fillBtn.hidden = false;
   fillBtn.disabled = false;
+  fillBtn.classList.add("is-ready");
   fillBtn.textContent = `Fill ${count} Field${count === 1 ? "" : "s"}`;
 }
 
@@ -145,6 +225,19 @@ function updateSummary(matches) {
     span.textContent = chip.label;
     summaryEl.append(span);
   }
+}
+
+function displayTitle(match) {
+  const fp = match.fingerprint || {};
+  const clue = primaryClue(fp);
+  // Prefer profile field name over example placeholders once matched.
+  if (
+    match.profileLabel &&
+    (/^(e\.?g\.?|example|sample)\b/i.test(clue) || clue === "(no clues)")
+  ) {
+    return match.profileLabel;
+  }
+  return clue;
 }
 
 function primaryClue(field) {
@@ -180,9 +273,6 @@ function statusMeta(match) {
 
   if (isWillFill(match)) {
     const label = match.profileLabel || match.profileKey || "Profile";
-    const valueBit = fillVal
-      ? ` · ${match.fillLabel || fillVal}`
-      : " · (empty in profile)";
     const fitBit = match.fitted
       ? match.fingerprint?.maxLength != null
         ? ` · fits maxlen ${match.fingerprint.maxLength}`
@@ -191,30 +281,32 @@ function statusMeta(match) {
     return {
       pill: "Will fill",
       pillClass: "pill-matched",
-      detail: `${label}${valueBit}${compoundBit}${fitBit}`,
+      detail: `${label}${compoundBit}${fitBit}`,
+      fillValue: match.fillLabel || fillVal || "(empty in profile)",
     };
   }
   if (match.status === "needs_review") {
-    const keyBit =
-      match.profileLabel || match.profileKey
-        ? `${match.profileLabel || match.profileKey} · `
-        : "";
+    const keyBit = match.profileLabel || match.profileKey || "Possible match";
+    const reason = match.reason || "Needs review";
+    const shortReason =
+      reason.length > 72 ? `${reason.slice(0, 69)}…` : reason;
     return {
       pill: "Check",
       pillClass: "pill-review",
-      detail: `${keyBit}${match.reason || "Needs review"}`,
+      detail: `${keyBit} · ${shortReason}`,
+      fillValue: match.fillLabel || fillVal || "",
     };
   }
   return {
     pill: "Not matched",
     pillClass: "pill-none",
     detail: match.reason || "No confident match",
+    fillValue: "",
   };
 }
 
 function createFieldItem(match, options) {
   const { selectable, checked, disabled } = options;
-  const fp = match.fingerprint;
   const meta = statusMeta(match);
 
   const li = document.createElement("li");
@@ -235,7 +327,7 @@ function createFieldItem(match, options) {
     input.dataset.index = String(match.index);
     input.setAttribute(
       "aria-label",
-      `Include ${primaryClue(fp)} when filling`
+      `Include ${displayTitle(match)} when filling`
     );
     input.addEventListener("change", () => {
       if (input.checked) selectedIndexes.add(match.index);
@@ -246,14 +338,14 @@ function createFieldItem(match, options) {
 
     const title = document.createElement("span");
     title.className = "field-title";
-    title.textContent = primaryClue(fp);
+    title.textContent = displayTitle(match);
 
     label.append(input, title);
     top.append(label);
   } else {
     const title = document.createElement("span");
     title.className = "field-title";
-    title.textContent = primaryClue(fp);
+    title.textContent = displayTitle(match);
     top.append(title);
   }
 
@@ -267,6 +359,15 @@ function createFieldItem(match, options) {
   detail.textContent = meta.detail;
 
   li.append(top, detail);
+
+  if (meta.fillValue) {
+    const valueEl = document.createElement("div");
+    valueEl.className = "field-value";
+    valueEl.textContent = meta.fillValue;
+    valueEl.title = meta.fillValue;
+    li.append(valueEl);
+  }
+
   return li;
 }
 
@@ -343,6 +444,8 @@ function renderMatches(matches) {
   resetUnmatchedCollapse();
   updateSummary(matches);
   updateFillButton();
+  updateProfileNudge();
+  showEmptyState(false);
 }
 
 function clearReview() {
@@ -354,6 +457,7 @@ function clearReview() {
   listUnmatched.innerHTML = "";
   selectedIndexes = new Set();
   updateFillButton();
+  updateProfileNudge();
 }
 
 function normalizeDob(value) {
@@ -572,12 +676,103 @@ function readFormIntoProfile(form) {
 populateDobSelects();
 
 async function loadProfile() {
-  const stored = await chrome.storage.local.get(STORAGE_KEY);
-  profile = { ...emptyProfile(), ...(stored[STORAGE_KEY] || {}) };
-  fillFormsFromProfile();
-  if (lastMatches) {
-    renderMatches(lastMatches);
+  if (typeof FoxFillProfiles === "undefined") {
+    profile = emptyProfile();
+    return;
   }
+  profileStore = await FoxFillProfiles.loadStore(PROFILE_KEYS);
+  const active = FoxFillProfiles.getActive(profileStore);
+  profile = { ...emptyProfile(), ...(active?.data || {}) };
+  renderProfileSelect();
+  fillFormsFromProfile();
+  updateProfileNudge();
+  if (lastMatches) {
+    refreshMatchesForActiveProfile();
+  }
+}
+
+function renderProfileSelect() {
+  if (!profileSelect || !profileStore || typeof FoxFillProfiles === "undefined") {
+    return;
+  }
+  const list = FoxFillProfiles.listProfiles(profileStore);
+  const activeId = profileStore.activeProfileId;
+  profileSelect.innerHTML = "";
+  for (const p of list) {
+    const opt = document.createElement("option");
+    opt.value = p.id;
+    opt.textContent = p.name;
+    if (p.id === activeId) opt.selected = true;
+    profileSelect.append(opt);
+  }
+  if (profileDeleteBtn) {
+    profileDeleteBtn.disabled = list.length <= 1;
+  }
+}
+
+function applyActiveProfileToUi() {
+  const active = FoxFillProfiles.getActive(profileStore);
+  profile = { ...emptyProfile(), ...(active?.data || {}) };
+  fillFormsFromProfile();
+  updateProfileNudge();
+  refreshMatchesForActiveProfile();
+}
+
+function refreshMatchesForActiveProfile() {
+  if (!lastMatches) return;
+  // Re-run compounds per frame using current profile values.
+  const byFrame = new Map();
+  for (const m of lastMatches) {
+    const fid = m.frameId ?? 0;
+    if (!byFrame.has(fid)) byFrame.set(fid, []);
+    byFrame.get(fid).push(m);
+  }
+  const rebuilt = [];
+  let globalIndex = 0;
+  for (const [frameId, raw] of byFrame) {
+    let local = raw.map((m, i) => ({
+      ...m,
+      index: i,
+      frameId,
+      compound: undefined,
+      fillMode: undefined,
+      fillValue: m.profileKey === "phone" ? undefined : m.fillValue,
+    }));
+    if (typeof FoxFillApplyPhoneCompounds === "function") {
+      local = FoxFillApplyPhoneCompounds(local, {
+        phone: profile.phone || "",
+        country: profile.country || "",
+        dateOfBirth: profile.dateOfBirth || "",
+      });
+    }
+    const localToGlobal = new Map();
+    for (const m of local) {
+      localToGlobal.set(m.index, globalIndex);
+      rebuilt.push({
+        ...m,
+        index: globalIndex,
+        frameId,
+        localIndex: m.index,
+      });
+      globalIndex += 1;
+    }
+    for (const m of rebuilt) {
+      if (m.frameId !== frameId) continue;
+      if (m.compound && m.compound.pairedIndex != null) {
+        const mapped = localToGlobal.get(m.compound.pairedIndex);
+        if (mapped != null) {
+          m.compound = { ...m.compound, pairedIndex: mapped };
+        }
+      }
+    }
+  }
+  lastMatches = rebuilt;
+  renderMatches(lastMatches);
+}
+
+async function persistStore() {
+  if (!profileStore || typeof FoxFillProfiles === "undefined") return;
+  await FoxFillProfiles.saveStore(profileStore);
 }
 
 async function saveProfile(fromForm, msgEl) {
@@ -585,42 +780,130 @@ async function saveProfile(fromForm, msgEl) {
   readFormIntoProfile(
     fromForm === personalForm ? addressForm : personalForm
   );
-  await chrome.storage.local.set({ [STORAGE_KEY]: profile });
+  if (profileStore && typeof FoxFillProfiles !== "undefined") {
+    FoxFillProfiles.upsertActiveData(profileStore, profile, PROFILE_KEYS);
+    await persistStore();
+  }
   msgEl.hidden = false;
   window.setTimeout(() => {
     msgEl.hidden = true;
   }, 1600);
-  if (lastMatches) {
-    if (typeof FoxFillApplyPhoneCompounds === "function") {
-      lastMatches = FoxFillApplyPhoneCompounds(lastMatches, {
-        phone: profile.phone || "",
-        country: profile.country || "",
-        dateOfBirth: profile.dateOfBirth || "",
-      });
-    }
-    renderMatches(lastMatches);
+  updateProfileNudge();
+  refreshMatchesForActiveProfile();
+}
+
+async function switchProfile(profileId) {
+  if (!profileStore || typeof FoxFillProfiles === "undefined") return;
+  // Keep unsaved form edits on the outgoing profile
+  readFormIntoProfile(personalForm);
+  readFormIntoProfile(addressForm);
+  FoxFillProfiles.upsertActiveData(profileStore, profile, PROFILE_KEYS);
+  FoxFillProfiles.setActive(profileStore, profileId);
+  await persistStore();
+  applyActiveProfileToUi();
+  renderProfileSelect();
+  setStatus(`Switched to “${activeProfileName()}”.`, "is-success");
+}
+
+async function createProfile() {
+  if (!profileStore || typeof FoxFillProfiles === "undefined") return;
+  const name = window.prompt("Name for the new profile", "Work");
+  if (name == null) return;
+  const trimmed = String(name).trim();
+  if (!trimmed) return;
+
+  readFormIntoProfile(personalForm);
+  readFormIntoProfile(addressForm);
+  FoxFillProfiles.upsertActiveData(profileStore, profile, PROFILE_KEYS);
+
+  const copy = window.confirm(
+    `Copy details from “${activeProfileName()}” into the new profile?\n\nOK = copy · Cancel = start blank`
+  );
+  FoxFillProfiles.addProfile(profileStore, trimmed, PROFILE_KEYS, copy);
+  await persistStore();
+  applyActiveProfileToUi();
+  renderProfileSelect();
+  setStatus(`Created “${trimmed}”.`, "is-success");
+  activateTab("personal");
+}
+
+async function renameActiveProfile() {
+  if (!profileStore || typeof FoxFillProfiles === "undefined") return;
+  const active = FoxFillProfiles.getActive(profileStore);
+  if (!active) return;
+  const name = window.prompt("Rename profile", active.name);
+  if (name == null) return;
+  const trimmed = String(name).trim();
+  if (!trimmed) return;
+  FoxFillProfiles.renameProfile(profileStore, active.id, trimmed);
+  await persistStore();
+  renderProfileSelect();
+  setStatus(`Renamed to “${trimmed}”.`, "is-success");
+}
+
+async function deleteActiveProfile() {
+  if (!profileStore || typeof FoxFillProfiles === "undefined") return;
+  const active = FoxFillProfiles.getActive(profileStore);
+  if (!active) return;
+  const list = FoxFillProfiles.listProfiles(profileStore);
+  if (list.length <= 1) {
+    setError("You need at least one profile.");
+    return;
+  }
+  const ok = window.confirm(
+    `Delete profile “${active.name}”? This can’t be undone.`
+  );
+  if (!ok) return;
+  const result = FoxFillProfiles.deleteProfile(
+    profileStore,
+    active.id,
+    PROFILE_KEYS
+  );
+  if (!result.ok) {
+    setError("Couldn’t delete that profile.");
+    return;
+  }
+  await persistStore();
+  applyActiveProfileToUi();
+  renderProfileSelect();
+  setStatus(`Deleted. Now using “${activeProfileName()}”.`, "is-success");
+}
+
+function setupProfileControls() {
+  if (profileSelect) {
+    profileSelect.addEventListener("change", () => {
+      void switchProfile(profileSelect.value);
+    });
+  }
+  if (profileNewBtn) {
+    profileNewBtn.addEventListener("click", () => {
+      void createProfile();
+    });
+  }
+  if (profileRenameBtn) {
+    profileRenameBtn.addEventListener("click", () => {
+      void renameActiveProfile();
+    });
+  }
+  if (profileDeleteBtn) {
+    profileDeleteBtn.addEventListener("click", () => {
+      void deleteActiveProfile();
+    });
   }
 }
 
 function setupTabs() {
   const tabs = document.querySelectorAll(".tab");
-  const panels = document.querySelectorAll(".panel");
 
   tabs.forEach((tab) => {
     tab.addEventListener("click", () => {
-      const id = tab.dataset.tab;
-      tabs.forEach((t) => {
-        const active = t === tab;
-        t.classList.toggle("is-active", active);
-        t.setAttribute("aria-selected", active ? "true" : "false");
-      });
-      panels.forEach((panel) => {
-        const active = panel.dataset.panel === id;
-        panel.classList.toggle("is-active", active);
-        panel.hidden = !active;
-      });
+      activateTab(tab.dataset.tab);
     });
   });
+
+  if (nudgePersonalBtn) {
+    nudgePersonalBtn.addEventListener("click", () => activateTab("personal"));
+  }
 }
 
 async function getActiveTab() {
@@ -628,10 +911,77 @@ async function getActiveTab() {
   return tabs[0] || null;
 }
 
+/**
+ * Merge scan results from every frame (Discovery quote forms live in iframes).
+ * Phone compounds are applied per-frame so dial companions stay paired.
+ */
+function collectMatchesFromFrames(results) {
+  const buckets = new Map();
+  let framesScanned = 0;
+  let framesWithFields = 0;
+
+  for (const entry of results || []) {
+    framesScanned += 1;
+    const payload = entry?.result;
+    if (!payload || payload.ok !== true || !Array.isArray(payload.matches)) {
+      continue;
+    }
+    const frameId = entry.frameId ?? 0;
+    if (payload.matches.length) framesWithFields += 1;
+    if (!buckets.has(frameId)) buckets.set(frameId, []);
+    for (const match of payload.matches) {
+      buckets.get(frameId).push({
+        ...match,
+        frameId,
+        frameHref: payload.frame?.href || "",
+      });
+    }
+  }
+
+  const merged = [];
+  let globalIndex = 0;
+
+  for (const [frameId, raw] of buckets) {
+    let local = raw.map((m, i) => ({ ...m, index: i, frameId }));
+    if (typeof FoxFillApplyPhoneCompounds === "function") {
+      local = FoxFillApplyPhoneCompounds(local, {
+        phone: profile.phone || "",
+        country: profile.country || "",
+        dateOfBirth: profile.dateOfBirth || "",
+      });
+    }
+
+    const localToGlobal = new Map();
+    for (const m of local) {
+      localToGlobal.set(m.index, globalIndex);
+      merged.push({
+        ...m,
+        index: globalIndex,
+        frameId,
+        localIndex: m.index,
+      });
+      globalIndex += 1;
+    }
+
+    for (const m of merged) {
+      if (m.frameId !== frameId) continue;
+      if (m.compound && m.compound.pairedIndex != null) {
+        const mapped = localToGlobal.get(m.compound.pairedIndex);
+        if (mapped != null) {
+          m.compound = { ...m.compound, pairedIndex: mapped };
+        }
+      }
+    }
+  }
+
+  return { matches: merged, framesScanned, framesWithFields };
+}
+
 async function scanActiveTab() {
   setError("");
   setStatus("Scanning this page…");
   clearReview();
+  showEmptyState(false);
   lastMatches = null;
   lastTabId = null;
   scanBtn.disabled = true;
@@ -639,21 +989,21 @@ async function scanActiveTab() {
   try {
     const tab = await getActiveTab();
     if (!tab || tab.id == null) {
-      setStatus("Open a webpage with a form, then scan.");
-      setError("No active tab found.");
+      setStatus("No active tab to scan.", "is-error");
+      setError("Open a webpage in this window, then try Scan Form again.");
+      showEmptyState(true);
       return;
     }
 
     if (isRestrictedUrl(tab.url || "")) {
-      setStatus("Open a webpage with a form, then scan.");
-      setError(
-        "FoxFill can’t scan this page. Open a normal website and try again."
-      );
+      setStatus("This page can’t be scanned.", "is-error");
+      setError(restrictedPageMessage(tab.url || ""));
+      showEmptyState(true);
       return;
     }
 
     const results = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
+      target: { tabId: tab.id, allFrames: true },
       files: [
         "data/fieldPatterns.js",
         "data/phoneParse.js",
@@ -664,20 +1014,14 @@ async function scanActiveTab() {
       ],
     });
 
-    const payload = results?.[0]?.result;
-    if (!payload || payload.ok !== true || !Array.isArray(payload.matches)) {
-      setStatus("Open a webpage with a form, then scan.");
-      setError("Scan failed. Reload the page and try again.");
-      return;
-    }
+    const collected = collectMatchesFromFrames(results);
+    let matches = collected.matches;
 
-    let matches = payload.matches;
-    if (typeof FoxFillApplyPhoneCompounds === "function") {
-      matches = FoxFillApplyPhoneCompounds(matches, {
-        phone: profile.phone || "",
-        country: profile.country || "",
-        dateOfBirth: profile.dateOfBirth || "",
-      });
+    if (!results?.length) {
+      setStatus("Scan didn’t return fields.", "is-error");
+      setError("Reload the webpage, then click Scan Form again.");
+      showEmptyState(true);
+      return;
     }
 
     lastMatches = matches;
@@ -687,7 +1031,9 @@ async function scanActiveTab() {
     const willFill = matches.filter((m) => isWillFill(m)).length;
     const review = matches.filter((m) => m.status === "needs_review").length;
 
-    console.groupCollapsed(`[FoxFill] Review — ${count} fields`);
+    console.groupCollapsed(
+      `[FoxFill] Review — ${count} fields across ${collected.framesWithFields}/${collected.framesScanned} frames`
+    );
     console.table(
       matches.map((m) => ({
         label: primaryClue(m.fingerprint),
@@ -695,6 +1041,7 @@ async function scanActiveTab() {
         profile: m.profileKey || "",
         fill: resolvedFillValue(m),
         mode: m.fillMode || m.compound?.scenario || "",
+        frame: m.frameId,
         score: m.score || 0,
       }))
     );
@@ -702,28 +1049,51 @@ async function scanActiveTab() {
     console.groupEnd();
 
     if (count === 0) {
-      setStatus("No fillable fields found on this page.", "is-empty");
+      setStatus("No fillable fields on this page.", "is-empty");
+      setError("");
+      showEmptyState(
+        true,
+        "Nothing to fill here",
+        collected.framesScanned > 1
+          ? "Scanned nested frames too, but found no usable inputs. The form may still be loading — wait a second and scan again."
+          : "No text inputs found. If the form is inside a login wall or still loading, wait and scan again."
+      );
       return;
     }
 
-    setStatus(
-      `Form detected — ${count} fields. Review what will be filled.`,
-      "is-success"
-    );
     renderMatches(matches);
 
     if (willFill === 0 && review === 0) {
       setStatus(
-        `Form detected — ${count} fields, none matched confidently.`,
+        `Found ${count} fields, but none matched your profile confidently.`,
         "is-empty"
       );
+    } else if (willFill === 0 && review > 0) {
+      setStatus(
+        `Found ${count} fields — ${review} need a quick check before filling.`,
+        "is-empty"
+      );
+    } else {
+      const frameBit =
+        collected.framesWithFields > 1
+          ? ` across ${collected.framesWithFields} frames`
+          : "";
+      setStatus(
+        `Ready — ${willFill} matched${review ? `, ${review} to review` : ""}${frameBit}.`,
+        "is-success"
+      );
+    }
+
+    if (isProfileThin()) {
+      updateProfileNudge();
     }
   } catch (err) {
     console.error("FoxFill scan error:", err);
-    setStatus("Open a webpage with a form, then scan.");
+    setStatus("Couldn’t reach this tab.", "is-error");
     setError(
-      "Could not access this tab. Reload the page, then click Scan Form again."
+      "Reload the webpage, open FoxFill again, then click Scan Form."
     );
+    showEmptyState(true);
   } finally {
     scanBtn.disabled = false;
   }
@@ -731,9 +1101,11 @@ async function scanActiveTab() {
 
 async function fillActiveTab() {
   setError("");
+  fillBtn.classList.remove("is-ready");
   const fillable = selectedFillable();
   if (!fillable.length) {
-    setError("Nothing selected to fill. Tick fields in the review list.");
+    setStatus("Nothing selected.", "is-empty");
+    setError("Tick fields under Ready or Needs review, then try Fill again.");
     return;
   }
 
@@ -744,18 +1116,21 @@ async function fillActiveTab() {
   try {
     const tab = await getActiveTab();
     if (!tab || tab.id == null) {
-      setError("No active tab found.");
+      setStatus("No active tab.", "is-error");
+      setError("Keep the form page open in this window, then fill again.");
       return;
     }
 
     if (lastTabId != null && tab.id !== lastTabId) {
-      setError("Active tab changed. Scan this page again before filling.");
+      setStatus("Tab changed since scan.", "is-error");
+      setError("Scan this page again, then fill.");
       updateFillButton();
       return;
     }
 
     if (isRestrictedUrl(tab.url || "")) {
-      setError("FoxFill can’t fill this page.");
+      setStatus("This page can’t be filled.", "is-error");
+      setError(restrictedPageMessage(tab.url || ""));
       return;
     }
 
@@ -780,6 +1155,7 @@ async function fillActiveTab() {
         fingerprint: m.fingerprint,
         allowOverwrite: false,
         hints,
+        frameId: m.frameId ?? 0,
         phoneParsed:
           m.profileKey === "phone" || m.fillMode?.startsWith?.("phone")
             ? phoneParsed
@@ -787,48 +1163,85 @@ async function fillActiveTab() {
       };
     });
 
-    await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      files: [
-        "data/phoneParse.js",
-        "data/fitValue.js",
-        "content/filler.js",
-      ],
-    });
+    const byFrame = new Map();
+    for (const item of fills) {
+      const fid = item.frameId ?? 0;
+      if (!byFrame.has(fid)) byFrame.set(fid, []);
+      byFrame.get(fid).push(item);
+    }
 
-    const results = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: (payload) => {
-        if (typeof globalThis.FoxFillFillFields !== "function") {
-          return { ok: false, error: "filler unavailable" };
-        }
-        return globalThis.FoxFillFillFields(payload);
-      },
-      args: [{ fills }],
-    });
+    let filled = 0;
+    let already = 0;
+    let skipped = 0;
+    const allFillResults = [];
 
-    const outcome = results?.[0]?.result;
-    if (!outcome || outcome.ok !== true) {
-      setError(outcome?.error || "Fill failed. Reload the page and scan again.");
-      return;
+    for (const [frameId, frameFills] of byFrame) {
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id, frameIds: [frameId] },
+        files: [
+          "data/phoneParse.js",
+          "data/fitValue.js",
+          "content/filler.js",
+        ],
+      });
+
+      const results = await chrome.scripting.executeScript({
+        target: { tabId: tab.id, frameIds: [frameId] },
+        func: (payload) => {
+          if (typeof globalThis.FoxFillFillFields !== "function") {
+            return { ok: false, error: "filler unavailable" };
+          }
+          return globalThis.FoxFillFillFields(payload);
+        },
+        args: [{ fills: frameFills }],
+      });
+
+      const outcome = results?.[0]?.result;
+      if (!outcome || outcome.ok !== true) {
+        setStatus("Fill didn’t complete.", "is-error");
+        setError(
+          outcome?.error ||
+            "Reload the webpage, scan again, then fill. If the form is in an iframe, wait for it to finish loading."
+        );
+        return;
+      }
+
+      filled += outcome.filled || 0;
+      already += outcome.already || 0;
+      skipped += outcome.skipped || 0;
+      if (Array.isArray(outcome.results)) {
+        allFillResults.push(...outcome.results);
+      }
     }
 
     console.groupCollapsed("[FoxFill] Fill outcome");
-    console.table(outcome.results || []);
+    console.table(allFillResults);
     console.groupEnd();
 
     const parts = [];
-    if (outcome.filled) parts.push(`${outcome.filled} filled`);
-    if (outcome.already) parts.push(`${outcome.already} already set`);
-    if (outcome.skipped) parts.push(`${outcome.skipped} skipped`);
+    if (filled) parts.push(`${filled} filled`);
+    if (already) parts.push(`${already} already set`);
+    if (skipped) parts.push(`${skipped} skipped`);
+    const kind =
+      filled > 0
+        ? "is-success"
+        : skipped > 0 && !already
+          ? "is-empty"
+          : "is-success";
     setStatus(
       parts.length ? `Done — ${parts.join(", ")}.` : "Fill finished.",
-      "is-success"
+      kind
     );
+    if (skipped > 0) {
+      setError(
+        "Some fields already had values and were left alone. Clear them on the page if you want FoxFill to overwrite."
+      );
+    }
   } catch (err) {
     console.error("FoxFill fill error:", err);
+    setStatus("Couldn’t fill this tab.", "is-error");
     setError(
-      "Could not fill this tab. Reload the page, scan again, then fill."
+      "Reload the webpage, scan again, then fill."
     );
   } finally {
     scanBtn.disabled = false;
@@ -863,5 +1276,6 @@ addressForm.addEventListener("submit", (event) => {
 });
 
 setupTabs();
+setupProfileControls();
 updateFillButton();
 void loadProfile();

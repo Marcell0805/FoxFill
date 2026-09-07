@@ -426,8 +426,80 @@
     return false;
   }
 
+  /**
+   * Discovery-style: radio "ID number" + text input named idField with weak labels.
+   */
+  function looksLikeIdNumberField(fingerprint) {
+    if (isForeignSection(fingerprint)) return false;
+
+    const type = String(fingerprint.type || "").toLowerCase();
+    // Years-with-insurer etc. are selects — never treat as ID.
+    if (type === "select" || type === "textarea") return false;
+
+    const name = compact(fingerprint.name || "");
+    const id = compact(fingerprint.id || "");
+    const nameId = `${name} ${id}`;
+    const label = normalize(fingerprint.label || "");
+    const aria = normalize(fingerprint.ariaLabel || "");
+    const nearby = normalize(fingerprint.nearbyText || "");
+    const placeholder = normalize(fingerprint.placeholder || "");
+
+    // Hard exclusions — these must never become idNumber
+    if (
+      /year|insurer|previous|passport|consent|policy|claim|vehicle|address|email|phone|mobile|cell/.test(
+        nameId
+      )
+    ) {
+      return false;
+    }
+    if (
+      /\b(years?|insurer|previous insurer|passport)\b/.test(
+        `${label} ${aria} ${nearby}`
+      ) &&
+      !/^(idfield|idnumber|rsaid)$/.test(name || id)
+    ) {
+      return false;
+    }
+
+    // Strong attribute names (Discovery idField)
+    if (
+      name === "idfield" ||
+      id === "idfield" ||
+      name === "idnumber" ||
+      id === "idnumber" ||
+      name === "rsaid" ||
+      id === "rsaid" ||
+      name === "said" ||
+      id === "said"
+    ) {
+      return true;
+    }
+
+    // Explicit personal ID labels on the control itself
+    if (/\b(id number|rsa id|sa id|identity number|identification number)\b/.test(label || aria)) {
+      return true;
+    }
+
+    // Nearby "ID number" alone is not enough (contaminates siblings).
+    // Require the control to also look ID-ish.
+    if (
+      /\b(id number|rsa id|sa id)\b/.test(nearby) &&
+      (/id/.test(nameId) || /id/.test(placeholder))
+    ) {
+      return true;
+    }
+
+    return false;
+  }
+
   function scoreFieldAgainstFingerprint(fingerprint, field) {
     if (field.key === "title" && looksLikeJobTitleField(fingerprint)) {
+      return { key: field.key, score: 0, reasons: [] };
+    }
+    if (
+      field.key === "idNumber" &&
+      String(fingerprint.type || "").toLowerCase() === "select"
+    ) {
       return { key: field.key, score: 0, reasons: [] };
     }
 
@@ -649,6 +721,18 @@
       result.reason = looksLikeResidenceTypeSelect(fingerprint)
         ? "residence-type select"
         : "type of residence field";
+      result.ambiguousWith = [];
+    }
+
+    if (
+      (!result.profileKey || result.status === "unmatched") &&
+      looksLikeIdNumberField(fingerprint)
+    ) {
+      result.status = "will_fill";
+      result.profileKey = "idNumber";
+      result.method = "id_heuristic";
+      result.score = Math.max(result.score || 0, SCORE.label);
+      result.reason = "id field / id number control";
       result.ambiguousWith = [];
     }
 

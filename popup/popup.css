@@ -73,6 +73,59 @@ body {
   color: rgba(248, 247, 244, 0.72);
 }
 
+.profile-bar {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+
+.profile-bar-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(248, 247, 244, 0.55);
+}
+
+.profile-select {
+  width: 100%;
+  appearance: none;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+  background: #fff;
+  border: 1px solid rgba(212, 181, 116, 0.55);
+  border-radius: 8px;
+  padding: 7px 10px;
+  cursor: pointer;
+}
+
+.profile-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.profile-btn {
+  flex: 1;
+  appearance: none;
+  border: 1px solid rgba(248, 247, 244, 0.22);
+  background: rgba(248, 247, 244, 0.08);
+  color: rgba(248, 247, 244, 0.92);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 7px;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+
+.profile-btn:hover {
+  background: rgba(248, 247, 244, 0.14);
+  border-color: rgba(212, 181, 116, 0.5);
+}
+
 .tabs {
   display: flex;
   gap: 0;
@@ -126,6 +179,7 @@ body {
   background: var(--success);
   border-radius: var(--radius);
   padding: 10px 12px;
+  animation: foxfade 0.28s ease;
 }
 
 .status.is-empty {
@@ -133,6 +187,117 @@ body {
   color: var(--text);
   border-radius: var(--radius);
   padding: 10px 12px;
+  animation: foxfade 0.28s ease;
+}
+
+.status.is-error {
+  background: var(--error);
+  color: #7a2e2e;
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  animation: foxfade 0.28s ease;
+}
+
+@keyframes foxfade {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes foxrise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes foxpulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(212, 181, 116, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(212, 181, 116, 0.12);
+  }
+}
+
+.empty-state {
+  border: 1px dashed rgba(15, 61, 46, 0.22);
+  border-radius: var(--radius);
+  background: rgba(15, 61, 46, 0.03);
+  padding: 14px 12px;
+  animation: foxrise 0.35s ease;
+}
+
+.empty-title {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.empty-body {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.profile-nudge {
+  border-radius: var(--radius);
+  background: var(--warning);
+  padding: 10px 12px;
+  animation: foxfade 0.28s ease;
+}
+
+.profile-nudge-text {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.linkish {
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-weight: 700;
+  color: var(--primary);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.profile-hint {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.field-value {
+  margin-top: 2px;
+  margin-left: 22px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.field-item:not(:has(.field-select)) .field-value {
+  margin-left: 0;
 }
 
 .btn-primary {
@@ -191,6 +356,10 @@ body {
   cursor: wait;
 }
 
+.btn-accent.is-ready:not(:disabled) {
+  animation: foxpulse 1.8s ease-in-out infinite;
+}
+
 .summary {
   display: flex;
   flex-wrap: wrap;
@@ -244,6 +413,7 @@ body {
   background: #fff;
   overflow: visible;
   flex-shrink: 0;
+  animation: foxrise 0.32s ease both;
 }
 
 .review-heading,
@@ -316,6 +486,7 @@ body {
 .field-item {
   padding: 8px 10px;
   border-bottom: 1px solid rgba(15, 61, 46, 0.08);
+  animation: foxrise 0.28s ease both;
 }
 
 .field-item:last-child {

@@ -2,7 +2,7 @@
 
 Privacy-first Chrome extension that fills web forms from a locally stored profile.
 
-**Current:** Phase 6+ — review UI, phone/date compounds, title & residence selects, constraint-aware fills.
+**Current:** Phase 8 — multi-profile (named local profiles you can switch between).
 
 Product rules and roadmap: **[PLAN.md](PLAN.md)**
 
@@ -12,13 +12,13 @@ Product rules and roadmap: **[PLAN.md](PLAN.md)**
 2. Enable **Developer mode**
 3. Click **Load unpacked**
 4. Select this folder: `D:\repos\FoxFill`
-5. Fill **Personal** / **Address** → Save Profile
+5. Choose or create a **Profile**, fill **Personal** / **Address** → Save
 6. Open a page with a form → **Scan Form**
 7. Review groups, adjust ticks, then **Fill N Fields**
 
 ## Permissions (V1)
 
-- `storage` — local profile
+- `storage` — local profiles
 - `activeTab` — temporary access after you open the popup
 - `scripting` — inject scanner/matcher/filler only on user action
 
@@ -33,16 +33,14 @@ FoxFill/
   popup/           UI (scan review + profile + fill)
   content/         Scanner, matcher, compound, filler
   background/      Service worker
-  data/            Field patterns, phone parse, date format, fit value
+  data/            Field patterns, phone parse, date format, fit value, profiles
   assets/icons/
   fixtures/        Local test form
 ```
 
 ## Roadmap (summary)
 
-1–6 Foundation through review UI — **done**  
-6+ Title, residence type, static `+CC` phone prefix, value fitting — **done**  
-7 Polish — next  
-8 Future (multi-profile, overlay, etc.)
+1–8 Foundation through multi-profile — **done**  
+8b Later: encryption, custom fields, optional overlay
 
 See [PLAN.md](PLAN.md) for locked rules and full detail.

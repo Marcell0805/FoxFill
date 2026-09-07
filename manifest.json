@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "FoxFill",
-  "version": "0.6.9",
+  "version": "0.8.3",
   "description": "Your details. Less hassle. Privacy-first form filling from a local profile.",
   "permissions": ["storage", "activeTab", "scripting"],
   "action": {

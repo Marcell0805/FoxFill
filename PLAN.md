@@ -69,7 +69,7 @@ Plain modular JavaScript (Manifest V3). No build step for V1.
 **Personal:** `title`, `firstName`, `lastName`, `idNumber`, `email`, `phone`, `dateOfBirth`  
 **Address:** `residenceType`, `addressLine1`, `addressLine2`, `suburb`, `city`, `province`, `postalCode`, `country`
 
-Matcher owns international aliases (state/region, zip/postcode, neighborhood, etc.).
+Profiles are named and stored locally (`foxfillStore`). Legacy single-profile data migrates automatically. Matcher owns international aliases (state/region, zip/postcode, neighborhood, etc.).
 
 ## Matching engine contract
 
@@ -91,6 +91,7 @@ Matcher owns international aliases (state/region, zip/postcode, neighborhood, et
 - **Area code** boxes: left empty (not invented from the profile).
 - Fit values to `maxlength` / `pattern` / masks (`fitValue.js`) before review and again on live fill.
 - DOB stored as ISO; filled via `dateFormat.js` to match the field’s pattern.
+- **Iframes:** Scan and fill run across all frames on the tab (needed for sites like Discovery quote flows).
 
 ## Phased roadmap
 
@@ -104,8 +105,9 @@ Matcher owns international aliases (state/region, zip/postcode, neighborhood, et
 | **5b Phone compounds** | Dial companions, national vs full, static `+CC` prefix | Done |
 | **6 Review UI** | Will fill / Needs review / Not matched + Fill N Fields | Done |
 | **6+ Profile extras** | Title, ID number, residence type, constraint-aware phone/DOB | Done |
-| **7 Polish** | Empty states, errors, motion | Next |
-| **8 Future** | Multi-profile, encryption, custom fields, overlay | Later |
+| **7 Polish** | Empty states, errors, motion, clearer review values | Done |
+| **8 Multi-profile** | Named local profiles (switch / new / rename / delete) | Done |
+| **8b Later** | Encryption at rest, custom fields, optional overlay | Later |
 
 ## Out of scope (until later)
 
