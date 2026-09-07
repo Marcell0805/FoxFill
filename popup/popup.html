@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FoxFill</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="header">
+      <div class="brand">
+        <img
+          class="brand-icon"
+          src="../assets/icons/icon48.png"
+          alt=""
+          width="28"
+          height="28"
+        />
+        <h1 class="wordmark" aria-label="FoxFill">
+          <span class="wordmark-fox">Fox</span><span class="wordmark-fill">Fill</span>
+        </h1>
+      </div>
+      <p class="tagline">Your details. Less hassle.</p>
+    </header>
+
+    <nav class="tabs" role="tablist" aria-label="FoxFill sections">
+      <button type="button" class="tab is-active" role="tab" aria-selected="true" data-tab="scan">
+        Scan
+      </button>
+      <button type="button" class="tab" role="tab" aria-selected="false" data-tab="personal">
+        Personal
+      </button>
+      <button type="button" class="tab" role="tab" aria-selected="false" data-tab="address">
+        Address
+      </button>
+    </nav>
+
+    <main class="main">
+      <section class="panel is-active" id="panel-scan" data-panel="scan">
+        <p class="status" id="status" role="status" aria-live="polite">
+          Open a webpage with a form, then scan.
+        </p>
+
+        <div class="summary" id="summary" hidden></div>
+
+        <button type="button" class="btn-primary" id="scanBtn">Scan Form</button>
+
+        <div class="review" id="review" hidden>
+          <section class="review-group" data-group="will_fill" hidden>
+            <h2 class="review-heading">
+              <span>Ready to fill</span>
+              <span class="review-count" id="countWill">0</span>
+            </h2>
+            <ul class="field-list" id="listWill"></ul>
+          </section>
+
+          <section class="review-group" data-group="needs_review" hidden>
+            <h2 class="review-heading">
+              <span>Needs review</span>
+              <span class="review-count" id="countReview">0</span>
+            </h2>
+            <p class="review-note">Unchecked by default. Tick to include when filling.</p>
+            <ul class="field-list" id="listReview"></ul>
+          </section>
+
+          <section class="review-group" data-group="unmatched" hidden>
+            <button type="button" class="review-toggle" id="toggleUnmatched" aria-expanded="false">
+              <span>Not matched</span>
+              <span class="review-count" id="countUnmatched">0</span>
+            </button>
+            <ul class="field-list is-collapsed" id="listUnmatched" hidden></ul>
+          </section>
+        </div>
+
+        <button type="button" class="btn-accent" id="fillBtn" hidden>
+          Fill Fields
+        </button>
+
+        <p class="hint" id="hint">
+          Personal profile only — emergency/bank sections are skipped. Area
+          code boxes are left empty. Phone fields get the full number unless a
+          +country prefix is already shown beside the input. Dates follow the
+          field format.
+        </p>
+
+        <p class="error" id="error" hidden></p>
+      </section>
+
+      <section class="panel" id="panel-personal" data-panel="personal" hidden>
+        <form id="personalForm" class="profile-form" autocomplete="off">
+          <label>
+            Title
+            <select name="title">
+              <option value="">Select…</option>
+              <option value="Mr">Mr</option>
+              <option value="Ms">Ms</option>
+              <option value="Miss">Miss</option>
+              <option value="Mrs">Mrs</option>
+              <option value="Dr">Dr</option>
+              <option value="Prof">Prof</option>
+              <option value="Rev">Rev</option>
+              <option value="Past">Past</option>
+              <option value="Mx">Mx</option>
+              <option value="Adv">Adv</option>
+            </select>
+          </label>
+          <label>First Name <input name="firstName" type="text" /></label>
+          <label>Last Name <input name="lastName" type="text" /></label>
+          <label>ID Number <input name="idNumber" type="text" inputmode="numeric" autocomplete="off" /></label>
+          <label>Email <input name="email" type="email" /></label>
+          <label>Phone <input name="phone" type="tel" placeholder="+27…" /></label>
+          <label class="dob-field">
+            Date of Birth
+            <input type="hidden" name="dateOfBirth" id="dateOfBirth" value="" />
+            <div class="dob-picker" role="group" aria-label="Date of birth">
+              <div class="dob-dd" data-dob="day">
+                <button type="button" class="dob-dd-btn" id="dobDayBtn" aria-haspopup="listbox" aria-expanded="false">
+                  <span class="dob-dd-label">Day</span>
+                  <span class="dob-dd-caret" aria-hidden="true"></span>
+                </button>
+                <ul class="dob-dd-menu" id="dobDayMenu" role="listbox" hidden></ul>
+              </div>
+              <div class="dob-dd" data-dob="month">
+                <button type="button" class="dob-dd-btn" id="dobMonthBtn" aria-haspopup="listbox" aria-expanded="false">
+                  <span class="dob-dd-label">Month</span>
+                  <span class="dob-dd-caret" aria-hidden="true"></span>
+                </button>
+                <ul class="dob-dd-menu" id="dobMonthMenu" role="listbox" hidden></ul>
+              </div>
+              <div class="dob-dd" data-dob="year">
+                <button type="button" class="dob-dd-btn" id="dobYearBtn" aria-haspopup="listbox" aria-expanded="false">
+                  <span class="dob-dd-label">Year</span>
+                  <span class="dob-dd-caret" aria-hidden="true"></span>
+                </button>
+                <ul class="dob-dd-menu" id="dobYearMenu" role="listbox" hidden></ul>
+              </div>
+            </div>
+          </label>
+          <button type="submit" class="btn-primary">Save Profile</button>
+        </form>
+        <p class="save-msg" id="personalSaveMsg" hidden>Saved on this device.</p>
+      </section>
+
+      <section class="panel" id="panel-address" data-panel="address" hidden>
+        <form id="addressForm" class="profile-form" autocomplete="off">
+          <label>
+            Type of Residence
+            <select name="residenceType">
+              <option value="">Select…</option>
+              <option value="House">House</option>
+              <option value="Townhouse">Townhouse</option>
+              <option value="Flat - On Ground Floor">Flat - On Ground Floor</option>
+              <option value="Flat - Above Ground Floor">Flat - Above Ground Floor</option>
+              <option value="Apartment">Apartment</option>
+              <option value="Duplex">Duplex</option>
+              <option value="Cluster">Cluster</option>
+            </select>
+          </label>
+          <label>Street Address <input name="addressLine1" type="text" /></label>
+          <label>Address Line 2 <input name="addressLine2" type="text" /></label>
+          <label>Suburb <input name="suburb" type="text" /></label>
+          <label>City <input name="city" type="text" /></label>
+          <label>Province <input name="province" type="text" /></label>
+          <label>Postal Code <input name="postalCode" type="text" /></label>
+          <label>Country <input name="country" type="text" /></label>
+          <button type="submit" class="btn-primary">Save Profile</button>
+        </form>
+        <p class="save-msg" id="addressSaveMsg" hidden>Saved on this device.</p>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <svg class="lock-icon" viewBox="0 0 16 16" aria-hidden="true">
+        <path
+          fill="currentColor"
+          d="M4.5 7V5.5a3.5 3.5 0 0 1 7 0V7h.75A1.75 1.75 0 0 1 14 8.75v4.5A1.75 1.75 0 0 1 12.25 15h-8.5A1.75 1.75 0 0 1 2 13.25v-4.5A1.75 1.75 0 0 1 3.75 7H4.5zm1.25 0h4.5V5.5a2.25 2.25 0 0 0-4.5 0V7z"
+        />
+      </svg>
+      Your data stays on your device.
+    </footer>
+
+    <script src="../data/phoneParse.js"></script>
+    <script src="../data/dateFormat.js"></script>
+    <script src="../data/fitValue.js"></script>
+    <script src="../content/compound.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

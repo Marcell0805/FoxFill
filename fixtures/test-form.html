@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>FoxFill Phase 1 — Test Form</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        max-width: 420px;
+        margin: 40px auto;
+        padding: 0 16px;
+      }
+      label {
+        display: block;
+        margin-top: 12px;
+        font-size: 14px;
+      }
+      input,
+      select,
+      textarea {
+        width: 100%;
+        margin-top: 4px;
+        padding: 8px;
+        box-sizing: border-box;
+      }
+      button {
+        margin-top: 16px;
+        padding: 10px 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>FoxFill test form</h1>
+    <p>Load the unpacked extension, then click Scan Form. Expect several fillable fields.</p>
+    <form>
+      <label>
+        Title
+        <select name="title" autocomplete="honorific-prefix">
+          <option value="">Select</option>
+          <option value="Mr">Mr</option>
+          <option value="Ms">Ms</option>
+          <option value="Miss">Miss</option>
+          <option value="Mrs">Mrs</option>
+          <option value="Dr">Dr</option>
+          <option value="Prof">Prof</option>
+          <option value="Rev">Rev</option>
+          <option value="Past">Past</option>
+        </select>
+      </label>
+      <label>First name <input type="text" name="first_name" autocomplete="given-name" /></label>
+      <label>Last name <input type="text" name="last_name" autocomplete="family-name" /></label>
+      <label>Email <input type="email" name="email" autocomplete="email" /></label>
+      <label>Phone <input type="tel" name="phone" autocomplete="tel" /></label>
+      <label>
+        Type Of Residence
+        <select name="residence_type">
+          <option value="">—Please choose an option—</option>
+          <option>House</option>
+          <option>Townhouse</option>
+          <option>Flat - On Ground Floor</option>
+          <option>Flat - Above Ground Floor</option>
+        </select>
+      </label>
+      <label>City <input type="text" name="city" autocomplete="address-level2" /></label>
+      <label>Notes <textarea name="notes" rows="3"></textarea></label>
+      <label>Country
+        <select name="country" autocomplete="country-name">
+          <option value="">Select…</option>
+          <option>South Africa</option>
+          <option>United Kingdom</option>
+        </select>
+      </label>
+      <label>Password (should be ignored) <input type="password" name="password" /></label>
+      <input type="hidden" name="csrf" value="secret" />
+      <button type="submit">Submit</button>
+    </form>
+  </body>
+</html>
