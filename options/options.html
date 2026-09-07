@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FoxFill — Settings</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <div class="unlock-gate" id="unlockGate" hidden>
+      <div class="unlock-card">
+        <h1>Profile locked</h1>
+        <p>Enter your passphrase to edit settings for this browser session.</p>
+        <label>
+          Passphrase
+          <span class="pw-field">
+            <input type="password" id="unlockPassphrase" autocomplete="current-password" />
+            <button type="button" class="pw-toggle" data-pw-target="unlockPassphrase">Show</button>
+          </span>
+        </label>
+        <button type="button" class="btn-primary" id="unlockBtn">Unlock</button>
+        <div class="recover-block">
+          <p>Or unlock with your recovery email</p>
+          <label>
+            Recovery email
+            <input type="email" id="unlockRecoveryEmail" autocomplete="email" />
+          </label>
+          <button type="button" class="btn-ghost" id="recoverBtn">Recover with email</button>
+        </div>
+        <p class="error" id="unlockError" hidden></p>
+      </div>
+    </div>
+
+    <div id="appShell">
+      <header class="top">
+        <div class="brand">
+          <img src="../assets/icons/icon48.png" alt="" width="36" height="36" />
+          <div>
+            <h1 class="wordmark"><span class="fox">Fox</span><span class="fill">Fill</span></h1>
+            <p class="tag">Settings — stored only on this device</p>
+          </div>
+        </div>
+        <div class="top-actions">
+          <label class="profile-pick">
+            Active profile
+            <select id="profileSelect"></select>
+          </label>
+          <button type="button" class="btn-ghost" id="profileNewBtn">New</button>
+          <button type="button" class="btn-ghost" id="profileRenameBtn">Rename</button>
+          <button type="button" class="btn-ghost danger" id="profileDeleteBtn">Delete</button>
+        </div>
+      </header>
+
+      <main class="layout">
+        <section class="card">
+          <h2>Personal</h2>
+          <form id="personalForm" class="grid" autocomplete="off">
+            <label>
+              Title
+              <select name="title">
+                <option value="">Select…</option>
+                <option value="Mr">Mr</option>
+                <option value="Ms">Ms</option>
+                <option value="Miss">Miss</option>
+                <option value="Mrs">Mrs</option>
+                <option value="Dr">Dr</option>
+                <option value="Prof">Prof</option>
+                <option value="Rev">Rev</option>
+                <option value="Past">Past</option>
+                <option value="Mx">Mx</option>
+                <option value="Adv">Adv</option>
+              </select>
+            </label>
+            <label>First Name <input name="firstName" type="text" /></label>
+            <label>Last Name <input name="lastName" type="text" /></label>
+            <label>ID Number <input name="idNumber" type="text" inputmode="numeric" /></label>
+            <label>Passport Number <input name="passportNumber" type="text" /></label>
+            <label>Email <input name="email" type="email" /></label>
+            <label>Phone <input name="phone" type="tel" placeholder="+27…" /></label>
+            <label class="span-2">
+              Date of Birth
+              <input name="dateOfBirth" type="date" id="dateOfBirth" />
+            </label>
+          </form>
+        </section>
+
+        <section class="card">
+          <h2>Address</h2>
+          <form id="addressForm" class="grid" autocomplete="off">
+            <label class="span-2">
+              Type of Residence
+              <select name="residenceType">
+                <option value="">Select…</option>
+                <option value="House">House</option>
+                <option value="Townhouse">Townhouse</option>
+                <option value="Flat - On Ground Floor">Flat - On Ground Floor</option>
+                <option value="Flat - Above Ground Floor">Flat - Above Ground Floor</option>
+                <option value="Apartment">Apartment</option>
+                <option value="Duplex">Duplex</option>
+                <option value="Cluster">Cluster</option>
+              </select>
+            </label>
+            <label class="span-2">Street Address <input name="addressLine1" type="text" /></label>
+            <label class="span-2">Address Line 2 <input name="addressLine2" type="text" /></label>
+            <label>Suburb <input name="suburb" type="text" /></label>
+            <label>City <input name="city" type="text" /></label>
+            <label>Province <input name="province" type="text" /></label>
+            <label>Postal Code <input name="postalCode" type="text" /></label>
+            <label class="span-2">Country <input name="country" type="text" /></label>
+          </form>
+        </section>
+
+        <section class="card span-all">
+          <div class="card-head">
+            <h2>Custom fields</h2>
+            <p>Extra values matched by label aliases on forms.</p>
+          </div>
+          <ul class="custom-list" id="customFieldList"></ul>
+          <form id="customFieldForm" class="custom-add" autocomplete="off">
+            <input name="label" type="text" placeholder="Label (e.g. Policy number)" required />
+            <input name="aliases" type="text" placeholder="Aliases, comma-separated" />
+            <input name="value" type="text" placeholder="Value" />
+            <button type="submit" class="btn-primary">Add</button>
+          </form>
+        </section>
+
+        <section class="card span-all privacy">
+          <h2>Privacy</h2>
+          <p id="encryptionStatus">Profiles are stored locally without a passphrase.</p>
+          <div id="encryptionOffControls" class="privacy-row">
+            <span class="pw-field">
+              <input type="password" id="enablePassphrase" placeholder="New passphrase" />
+              <button type="button" class="pw-toggle" data-pw-target="enablePassphrase">Show</button>
+            </span>
+            <span class="pw-field">
+              <input type="password" id="enablePassphrase2" placeholder="Confirm passphrase" />
+              <button type="button" class="pw-toggle" data-pw-target="enablePassphrase2">Show</button>
+            </span>
+            <input type="email" id="enableRecoveryEmail" placeholder="Recovery email" />
+            <button type="button" class="btn-primary" id="enableEncryptionBtn">Enable encryption</button>
+          </div>
+          <div id="encryptionOnControls" class="privacy-row" hidden>
+            <button type="button" class="btn-primary" id="lockNowBtn">Lock now</button>
+            <button type="button" class="btn-ghost danger" id="disableEncryptionBtn">Turn off encryption…</button>
+          </div>
+          <p class="error" id="encryptionError" hidden></p>
+        </section>
+      </main>
+
+      <footer class="bottom">
+        <p id="saveStatus" class="save-status" hidden>Saved on this device.</p>
+        <button type="button" class="btn-primary" id="saveAllBtn">Save all changes</button>
+      </footer>
+    </div>
+
+    <script src="../data/crypto.js"></script>
+    <script src="../data/profiles.js"></script>
+    <script src="options.js"></script>
+  </body>
+</html>

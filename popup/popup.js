@@ -46,12 +46,18 @@ const enableEncryptionBtn = document.getElementById("enableEncryptionBtn");
 const disableEncryptionBtn = document.getElementById("disableEncryptionBtn");
 const lockNowBtn = document.getElementById("lockNowBtn");
 const encryptionError = document.getElementById("encryptionError");
+const openSettingsBtn = document.getElementById("openSettingsBtn");
+const openSettingsFooterBtn = document.getElementById("openSettingsFooterBtn");
+const openSettingsFromPersonal = document.getElementById(
+  "openSettingsFromPersonal"
+);
 
 const PROFILE_KEYS = [
   "title",
   "firstName",
   "lastName",
   "idNumber",
+  "passportNumber",
   "email",
   "phone",
   "dateOfBirth",
@@ -494,6 +500,45 @@ function clearReview() {
   selectedIndexes = new Set();
   updateFillButton();
   updateProfileNudge();
+}
+
+/**
+ * Prototype in-page overlay: outline fields + floating summary panel.
+ */
+async function showPageOverlay(matches, tabId) {
+  try {
+    const byFrame = new Map();
+    for (const m of matches || []) {
+      const fid = m.frameId ?? 0;
+      if (!byFrame.has(fid)) byFrame.set(fid, []);
+      byFrame.get(fid).push({
+        status: m.status,
+        profileLabel: m.profileLabel || m.profileKey || "",
+        label: displayTitle(m),
+        fill: resolvedFillValue(m),
+        fingerprint: m.fingerprint,
+      });
+    }
+
+    for (const [frameId, frameMatches] of byFrame) {
+      await chrome.scripting.executeScript({
+        target: { tabId, frameIds: [frameId] },
+        files: ["content/overlay.js"],
+      });
+      await chrome.scripting.executeScript({
+        target: { tabId, frameIds: [frameId] },
+        func: (payload) => {
+          if (typeof globalThis.FoxFillShowOverlay === "function") {
+            return globalThis.FoxFillShowOverlay(payload);
+          }
+          return { ok: false };
+        },
+        args: [{ matches: frameMatches }],
+      });
+    }
+  } catch (err) {
+    console.warn("[FoxFill] Overlay preview failed:", err);
+  }
 }
 
 function normalizeDob(value) {
@@ -1356,6 +1401,21 @@ function setupMoreControls() {
   }
 }
 
+function openFullSettings() {
+  if (chrome.runtime.openOptionsPage) {
+    chrome.runtime.openOptionsPage();
+    return;
+  }
+  const url = chrome.runtime.getURL("options/options.html");
+  chrome.tabs.create({ url });
+}
+
+function setupSettingsLinks() {
+  openSettingsBtn?.addEventListener("click", openFullSettings);
+  openSettingsFooterBtn?.addEventListener("click", openFullSettings);
+  openSettingsFromPersonal?.addEventListener("click", openFullSettings);
+}
+
 function setupTabs() {
   const tabs = document.querySelectorAll(".tab");
 
@@ -1544,6 +1604,7 @@ async function scanActiveTab() {
     }
 
     renderMatches(matches);
+    void showPageOverlay(matches, tab.id);
 
     if (willFill === 0 && review === 0) {
       setStatus(
@@ -1760,5 +1821,6 @@ addressForm.addEventListener("submit", (event) => {
 setupTabs();
 setupProfileControls();
 setupMoreControls();
+setupSettingsLinks();
 updateFillButton();
 void loadProfile();

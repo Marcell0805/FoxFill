@@ -1,9 +1,13 @@
 {
   "manifest_version": 3,
   "name": "FoxFill",
-  "version": "0.9.2",
+  "version": "0.9.7",
   "description": "Your details. Less hassle. Privacy-first form filling from a local profile.",
   "permissions": ["storage", "activeTab", "scripting"],
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": true
+  },
   "action": {
     "default_title": "FoxFill",
     "default_popup": "popup/popup.html",

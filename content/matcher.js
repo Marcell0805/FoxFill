@@ -492,6 +492,46 @@
     return false;
   }
 
+  /**
+   * Passport number controls (distinct from SA ID / password fields).
+   */
+  function looksLikePassportField(fingerprint) {
+    if (isForeignSection(fingerprint)) return false;
+
+    const type = String(fingerprint.type || "").toLowerCase();
+    if (type === "select" || type === "textarea" || type === "password") {
+      return false;
+    }
+
+    const name = compact(fingerprint.name || "");
+    const id = compact(fingerprint.id || "");
+    const nameId = `${name} ${id}`;
+    const label = normalize(fingerprint.label || "");
+    const aria = normalize(fingerprint.ariaLabel || "");
+    const nearby = normalize(fingerprint.nearbyText || "");
+    const placeholder = normalize(fingerprint.placeholder || "");
+    const own = `${label} ${aria} ${placeholder}`;
+
+    // Never treat login/password controls as passport.
+    if (
+      /\b(password|passwd|secret|pin)\b/.test(`${own} ${nameId}`) &&
+      !/\bpassport\b/.test(`${own} ${nameId}`)
+    ) {
+      return false;
+    }
+
+    if (/passport/.test(nameId)) return true;
+    if (/\bpassport(\s+number|\s+no|\s+#)?\b/.test(own)) return true;
+    if (
+      /\bpassport\b/.test(nearby) &&
+      (/passport/.test(nameId) || /\bpassport\b/.test(placeholder))
+    ) {
+      return true;
+    }
+
+    return false;
+  }
+
   function scoreFieldAgainstFingerprint(fingerprint, field) {
     if (field.key === "title" && looksLikeJobTitleField(fingerprint)) {
       return { key: field.key, score: 0, reasons: [] };
@@ -499,6 +539,16 @@
     if (
       field.key === "idNumber" &&
       String(fingerprint.type || "").toLowerCase() === "select"
+    ) {
+      return { key: field.key, score: 0, reasons: [] };
+    }
+    if (field.key === "idNumber" && looksLikePassportField(fingerprint)) {
+      return { key: field.key, score: 0, reasons: [] };
+    }
+    if (
+      field.key === "passportNumber" &&
+      looksLikeIdNumberField(fingerprint) &&
+      !looksLikePassportField(fingerprint)
     ) {
       return { key: field.key, score: 0, reasons: [] };
     }
@@ -733,6 +783,18 @@
       result.method = "id_heuristic";
       result.score = Math.max(result.score || 0, SCORE.label);
       result.reason = "id field / id number control";
+      result.ambiguousWith = [];
+    }
+
+    if (
+      (!result.profileKey || result.status === "unmatched") &&
+      looksLikePassportField(fingerprint)
+    ) {
+      result.status = "will_fill";
+      result.profileKey = "passportNumber";
+      result.method = "passport_heuristic";
+      result.score = Math.max(result.score || 0, SCORE.label);
+      result.reason = "passport number control";
       result.ambiguousWith = [];
     }
 

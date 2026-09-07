@@ -66,7 +66,7 @@ Plain modular JavaScript (Manifest V3). No build step for V1.
 
 ## Profile fields
 
-**Personal:** `title`, `firstName`, `lastName`, `idNumber`, `email`, `phone`, `dateOfBirth`  
+**Personal:** `title`, `firstName`, `lastName`, `idNumber`, `passportNumber`, `email`, `phone`, `dateOfBirth`  
 **Address:** `residenceType`, `addressLine1`, `addressLine2`, `suburb`, `city`, `province`, `postalCode`, `country`
 
 Profiles are named and stored locally (`foxfillStore`). Legacy single-profile data migrates automatically. Optional **passphrase encryption** (AES-GCM) locks the store at rest. **Custom fields** live on each profile and are injected into matching at scan time. Matcher owns international aliases (state/region, zip/postcode, neighborhood, etc.). Overlay remains out of scope (popup only).
@@ -108,7 +108,8 @@ Profiles are named and stored locally (`foxfillStore`). Legacy single-profile da
 | **7 Polish** | Empty states, errors, motion, clearer review values | Done |
 | **8 Multi-profile** | Named local profiles (switch / new / rename / delete) | Done |
 | **8b Privacy & custom** | Passphrase encryption at rest + custom fields | Done |
-| **Later** | Optional overlay (popup-only remains locked) | Later |
+| **9 Overlay preview** | Optional in-page highlight panel after Scan (prototype) | Done |
+| **Later** | Full overlay (fill from page) / CWS packaging | Later |
 
 ## Out of scope (until later)
 

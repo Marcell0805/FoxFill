@@ -198,12 +198,14 @@
     if (!fp.staticDialPrefix && optsPreferNational) {
       fp.staticDialPrefix = "national";
     }
-    // ID numbers: never invent a short length from placeholders / masks.
-    // A bogus 6-slot read used to turn 9502541021587 into 021587.
+    // ID / passport: avoid inventing short lengths from placeholders / masks.
     if (profileKey === "idNumber") {
       const dig = digitsOnly(raw);
       if (dig.length >= 10) return dig;
       return raw;
+    }
+    if (profileKey === "passportNumber") {
+      return raw.replace(/\s+/g, "").toUpperCase();
     }
 
     const hasConstraints =

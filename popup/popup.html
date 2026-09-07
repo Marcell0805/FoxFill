@@ -21,6 +21,9 @@
         </h1>
       </div>
       <p class="tagline">Your details. Less hassle.</p>
+      <button type="button" class="open-settings-btn" id="openSettingsBtn">
+        Open full settings
+      </button>
       <div class="profile-bar" id="profileBar">
         <label class="profile-bar-label" for="profileSelect">Profile</label>
         <select id="profileSelect" class="profile-select" aria-label="Active profile"></select>
@@ -142,16 +145,19 @@
         </button>
 
         <p class="hint" id="hint">
-          Personal profile only — emergency/bank sections are skipped. Area
-          code boxes are left empty. Phone fields get the full number unless a
-          +country prefix is already shown beside the input. Dates follow the
-          field format.
+          Skips bank &amp; emergency. Leaves area-code boxes empty.
         </p>
 
         <p class="error" id="error" hidden></p>
       </section>
 
       <section class="panel" id="panel-personal" data-panel="personal" hidden>
+        <p class="profile-hint">
+          Prefer more space?
+          <button type="button" class="linkish" id="openSettingsFromPersonal">
+            Open full settings
+          </button>
+        </p>
         <form id="personalForm" class="profile-form" autocomplete="off">
           <label>
             Title
@@ -172,6 +178,7 @@
           <label>First Name <input name="firstName" type="text" /></label>
           <label>Last Name <input name="lastName" type="text" /></label>
           <label>ID Number <input name="idNumber" type="text" inputmode="numeric" autocomplete="off" /></label>
+          <label>Passport Number <input name="passportNumber" type="text" autocomplete="off" /></label>
           <label>Email <input name="email" type="email" /></label>
           <label>Phone <input name="phone" type="tel" placeholder="+27…" /></label>
           <label class="dob-field">
@@ -326,6 +333,9 @@
         />
       </svg>
       Your data stays on your device.
+      <button type="button" class="footer-settings-link" id="openSettingsFooterBtn">
+        Full settings
+      </button>
     </footer>
 
     <script src="../data/phoneParse.js"></script>
