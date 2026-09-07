@@ -1,0 +1,62 @@
+# FoxFill — Chrome Web Store listing copy
+
+## Summary (already in manifest / tagline field)
+Your details. Less hassle. Privacy-first form filling from a local profile.
+
+## Description (paste into Description*)
+
+FoxFill fills web forms from a profile that lives only on your device.
+
+Save your personal and address details once, then on any form: Scan → Review → Fill. FoxFill shows what it will enter, highlights matched fields on the page, and skips sections that look sensitive (like bank or emergency contacts).
+
+HOW IT WORKS
+1. Add your details under Personal and Address (or open Full settings for a roomier editor).
+2. Open a webpage with a form and click Scan Form.
+3. Review ready fields, tick anything marked for review, then Fill.
+4. Optional on-page overlay marks certain (green) vs review (yellow) matches.
+
+WHY FOXFILL
+• Local first — profiles stay in your browser; no account and no cloud sync.
+• You stay in control — review before fill; no auto-submit; empty fields only.
+• Multi-profile — keep Personal, Work, or other profiles and switch anytime.
+• Smart matching — names, email, phone, ID, passport, address, DOB, and more.
+• Custom fields — add your own labels and aliases for site-specific forms.
+• Optional encryption — lock profiles with a passphrase (AES-GCM on this device).
+• Privacy-minded fill — skips bank/emergency-style sections; leaves area-code boxes empty.
+
+PERMISSIONS (WHY WE ASK)
+• storage — save your profiles on this device (optionally encrypted).
+• activeTab — access the page you open when you scan.
+• scripting — run the scanner and filler only after you click Scan or Fill.
+
+FoxFill does not scan pages in the background and does not send your profile to a server.
+
+Made for everyday forms: quotes, registrations, contact pages, and more — less retyping, same privacy mindset.
+
+## Suggested screenshot order
+1. 01-scan-certain — green matches + overlay (confidence)
+2. 02-scan-review — yellow review state (control)
+3. 03-fill-complete — Fill button / filled form
+4. 04-fill-contact — another filled example
+5. 05-settings — full settings page (local profiles)
+
+## Store icon
+Upload: store-icon-128.png (exactly 128×128, no transparency)
+
+## Privacy practices (Chrome Web Store)
+
+### Single purpose description*
+FoxFill fills web forms from a user-managed profile stored only on the local device. Users scan a page, review matched fields, and choose what to fill.
+
+### storage justification*
+FoxFill stores the user’s form-fill profiles (personal/address details, custom fields, and optional encryption settings) in chrome.storage.local on this device so details can be reused across form scans. No profile data is sent to a remote server.
+
+### activeTab justification*
+FoxFill needs temporary access to the active tab when the user opens the extension and clicks Scan or Fill, so it can read form fields on that page and write approved values into empty inputs. Access is only used after an explicit user action on the current tab.
+
+### scripting justification*
+FoxFill injects its scanner, matcher, and filler scripts into the active page only when the user clicks Scan or Fill. Scripts run on demand to detect form fields, show review highlights, and fill selected empty fields. FoxFill does not inject scripts in the background or on every page load.
+
+### Remote code
+Select: No, I am not using remote code
+(All JavaScript ships inside the extension package; no remote scripts, no eval of remote code.)
