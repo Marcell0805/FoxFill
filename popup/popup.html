@@ -113,6 +113,18 @@
 
         <button type="button" class="btn-primary" id="scanBtn">Scan Form</button>
 
+        <div class="scan-dock">
+          <button type="button" class="btn-accent" id="fillBtn" hidden>
+            Fill Fields
+          </button>
+
+          <p class="hint" id="hint">
+            Skips bank &amp; emergency. Leaves area-code boxes empty.
+          </p>
+
+          <p class="error" id="error" hidden></p>
+        </div>
+
         <div class="review" id="review" hidden>
           <section class="review-group" data-group="will_fill" hidden>
             <h2 class="review-heading">
@@ -139,16 +151,6 @@
             <ul class="field-list is-collapsed" id="listUnmatched" hidden></ul>
           </section>
         </div>
-
-        <button type="button" class="btn-accent" id="fillBtn" hidden>
-          Fill Fields
-        </button>
-
-        <p class="hint" id="hint">
-          Skips bank &amp; emergency. Leaves area-code boxes empty.
-        </p>
-
-        <p class="error" id="error" hidden></p>
       </section>
 
       <section class="panel" id="panel-personal" data-panel="personal" hidden>

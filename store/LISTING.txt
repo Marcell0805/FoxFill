@@ -60,3 +60,6 @@ FoxFill injects its scanner, matcher, and filler scripts into the active page on
 ### Remote code
 Select: No, I am not using remote code
 (All JavaScript ships inside the extension package; no remote scripts, no eval of remote code.)
+
+### Privacy policy URL (paste into dashboard)
+https://marcell0805.github.io/the-foxs-den-doc/privacy/foxfill.html
