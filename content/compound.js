@@ -74,6 +74,21 @@
     for (const m of matches) {
       if (m.profileKey !== "dateOfBirth") continue;
       if (m.status !== "will_fill" && m.status !== "needs_review") continue;
+
+      const part = m.dobPart || null;
+      if (part && typeof fmt.formatDatePart === "function") {
+        const candidates =
+          typeof fmt.datePartCandidates === "function"
+            ? fmt.datePartCandidates(profile.dateOfBirth, part)
+            : [];
+        m.fillValue = fmt.formatDatePart(profile.dateOfBirth, part);
+        m.fillCandidates = candidates;
+        m.fillMode = `date_part_${part}`;
+        m.datePattern = part;
+        m.reason = `${m.reason || "dob"}; ${part} part`;
+        continue;
+      }
+
       const pattern =
         m.datePattern || fmt.detectPattern(m.fingerprint) || "YYYY-MM-DD";
       m.datePattern = pattern;

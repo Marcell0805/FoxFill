@@ -73,7 +73,6 @@
   }
 
   function optionMatch(select, desired, hints) {
-    const want = normalize(desired);
     const dialDigits =
       hints?.dialDigits ||
       (String(desired || "").match(/\+?(\d{1,4})/) || [])[1] ||
@@ -92,36 +91,60 @@
       }
     }
 
-    if (!want) return null;
-
-    for (const opt of Array.from(select.options)) {
-      if (normalize(opt.value) === want) return opt.value;
+    const candidates = [];
+    if (Array.isArray(hints?.candidates)) {
+      for (const c of hints.candidates) {
+        if (c != null && String(c).trim()) candidates.push(String(c).trim());
+      }
     }
-    for (const opt of Array.from(select.options)) {
-      if (normalize(opt.textContent) === want) return opt.value;
+    if (desired != null && String(desired).trim()) {
+      candidates.push(String(desired).trim());
     }
-
-    // Dial-code aware fallback: +27 / 27 inside option text
-    if (dialDigits) {
-      for (const opt of Array.from(select.options)) {
-        const text = String(opt.textContent || "");
-        const val = String(opt.value || "");
-        if (
-          text.includes(`+${dialDigits}`) ||
-          val === dialDigits ||
-          val === `+${dialDigits}` ||
-          new RegExp(`(?:^|\\D)${dialDigits}(?:\\D|$)`).test(val)
-        ) {
-          return opt.value;
-        }
+    // Numeric padding helpers (5 ↔ 05)
+    for (const c of [...candidates]) {
+      if (/^\d{1,2}$/.test(c)) {
+        const padded = c.padStart(2, "0");
+        if (!candidates.includes(padded)) candidates.push(padded);
+        const bare = String(Number(c));
+        if (!candidates.includes(bare)) candidates.push(bare);
       }
     }
 
-    for (const opt of Array.from(select.options)) {
-      const text = normalize(opt.textContent);
-      const val = normalize(opt.value);
-      if (text.includes(want) || want.includes(text) || val.includes(want)) {
-        return opt.value;
+    const tried = new Set();
+    for (const desiredOne of candidates) {
+      const want = normalize(desiredOne);
+      if (!want || tried.has(want)) continue;
+      tried.add(want);
+
+      for (const opt of Array.from(select.options)) {
+        if (normalize(opt.value) === want) return opt.value;
+      }
+      for (const opt of Array.from(select.options)) {
+        if (normalize(opt.textContent) === want) return opt.value;
+      }
+
+      // Dial-code aware fallback: +27 / 27 inside option text
+      if (dialDigits) {
+        for (const opt of Array.from(select.options)) {
+          const text = String(opt.textContent || "");
+          const val = String(opt.value || "");
+          if (
+            text.includes(`+${dialDigits}`) ||
+            val === dialDigits ||
+            val === `+${dialDigits}` ||
+            new RegExp(`(?:^|\\D)${dialDigits}(?:\\D|$)`).test(val)
+          ) {
+            return opt.value;
+          }
+        }
+      }
+
+      for (const opt of Array.from(select.options)) {
+        const text = normalize(opt.textContent);
+        const val = normalize(opt.value);
+        if (text.includes(want) || want.includes(text) || val.includes(want)) {
+          return opt.value;
+        }
       }
     }
     return null;

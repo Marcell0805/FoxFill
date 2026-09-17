@@ -270,8 +270,13 @@ function updateSummary(matches) {
 }
 
 function displayTitle(match) {
+  if (match.profileKey === "dateOfBirth" && match.dobPart) {
+    if (match.dobPart === "day") return "Birth day";
+    if (match.dobPart === "month") return "Birth month";
+    if (match.dobPart === "year") return "Birth year";
+  }
   const fp = match.fingerprint || {};
-  const clue = primaryClue(fp);
+  const clue = stripStatusMarks(primaryClue(fp));
   // Prefer profile field name over example placeholders once matched.
   if (
     match.profileLabel &&
@@ -279,7 +284,14 @@ function displayTitle(match) {
   ) {
     return match.profileLabel;
   }
-  return clue;
+  return clue || match.profileLabel || "(no clues)";
+}
+
+function stripStatusMarks(text) {
+  return String(text || "")
+    .replace(/[\u{1F7E0}-\u{1F7EB}\u{26AA}\u{26AB}]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function primaryClue(field) {
@@ -604,29 +616,104 @@ function openDobMenu(root) {
   root.classList.add("is-open");
   btn.setAttribute("aria-expanded", "true");
   menu.hidden = false;
+  const filter = menu.querySelector(".dob-dd-filter");
+  if (filter) {
+    filter.value = "";
+    filter.dispatchEvent(new Event("input", { bubbles: false }));
+    queueMicrotask(() => filter.focus());
+    return;
+  }
   const active = menu.querySelector(".is-active");
   if (active) active.scrollIntoView({ block: "nearest" });
 }
 
+function dobFilterMatch(text, value, query) {
+  const q = String(query || "")
+    .trim()
+    .toLowerCase();
+  if (!q) return true;
+  const label = String(text || "").toLowerCase();
+  const raw = String(value || "").toLowerCase();
+  const bare = raw.replace(/^0+/, "") || raw;
+  const qBare = q.replace(/^0+/, "") || q;
+  return (
+    label.startsWith(q) ||
+    label.includes(q) ||
+    raw.startsWith(q) ||
+    bare.startsWith(qBare) ||
+    bare === qBare
+  );
+}
+
 function fillDobMenu(menu, items, selected, onPick) {
   menu.innerHTML = "";
-  for (const [value, text] of items) {
-    const li = document.createElement("li");
-    const opt = document.createElement("button");
-    opt.type = "button";
-    opt.className = "dob-dd-option";
-    opt.setAttribute("role", "option");
-    opt.dataset.value = value;
-    opt.textContent = text;
-    if (value && value === selected) opt.classList.add("is-active");
-    opt.addEventListener("click", (event) => {
-      event.preventDefault();
-      onPick(value, text);
-      closeAllDobMenus();
-    });
-    li.append(opt);
-    menu.append(li);
+
+  const filterLi = document.createElement("li");
+  filterLi.className = "dob-dd-filter-row";
+  const filter = document.createElement("input");
+  filter.type = "search";
+  filter.className = "dob-dd-filter";
+  filter.placeholder = "Type to filter…";
+  filter.setAttribute("autocomplete", "off");
+  filter.setAttribute("aria-label", "Filter options");
+  filterLi.append(filter);
+  menu.append(filterLi);
+
+  const optionsHost = document.createElement("li");
+  optionsHost.className = "dob-dd-options-host";
+  const optionsList = document.createElement("ul");
+  optionsList.className = "dob-dd-options";
+  optionsHost.append(optionsList);
+  menu.append(optionsHost);
+
+  function renderOptions(query) {
+    optionsList.innerHTML = "";
+    const q = String(query || "").trim();
+    let shown = 0;
+    for (const [value, text] of items) {
+      if (!value && q) continue;
+      if (value && !dobFilterMatch(text, value, q)) continue;
+      const li = document.createElement("li");
+      const opt = document.createElement("button");
+      opt.type = "button";
+      opt.className = "dob-dd-option";
+      opt.setAttribute("role", "option");
+      opt.dataset.value = value;
+      opt.textContent = text;
+      if (value && value === selected) opt.classList.add("is-active");
+      opt.addEventListener("click", (event) => {
+        event.preventDefault();
+        onPick(value, text);
+        closeAllDobMenus();
+      });
+      li.append(opt);
+      optionsList.append(li);
+      shown += 1;
+    }
+    if (!shown) {
+      const empty = document.createElement("li");
+      empty.className = "dob-dd-empty";
+      empty.textContent = "No matches";
+      optionsList.append(empty);
+    }
+    const active = optionsList.querySelector(".is-active");
+    if (active) active.scrollIntoView({ block: "nearest" });
   }
+
+  filter.addEventListener("input", () => renderOptions(filter.value));
+  filter.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      const first = optionsList.querySelector(".dob-dd-option");
+      if (first) first.click();
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      closeAllDobMenus();
+    }
+  });
+  filter.addEventListener("click", (event) => event.stopPropagation());
+
+  renderOptions("");
 }
 
 function rebuildDobDayMenu() {
@@ -1692,6 +1779,9 @@ async function fillActiveTab() {
         if (phoneParsed?.dialDigits) hints.dialDigits = phoneParsed.dialDigits;
         if (profile.country) hints.country = profile.country;
       }
+      if (Array.isArray(m.fillCandidates) && m.fillCandidates.length) {
+        hints.candidates = m.fillCandidates;
+      }
       return {
         profileKey: m.profileKey,
         value,
@@ -1823,4 +1913,27 @@ setupProfileControls();
 setupMoreControls();
 setupSettingsLinks();
 updateFillButton();
+void initTheme();
 void loadProfile();
+
+async function initTheme() {
+  const toggle = document.getElementById("darkModeToggle");
+  if (typeof FoxFillPrefs === "undefined") return;
+  const prefs = await FoxFillPrefs.loadPrefs();
+  FoxFillPrefs.applyTheme(prefs.darkMode);
+  if (toggle) {
+    toggle.checked = Boolean(prefs.darkMode);
+    toggle.addEventListener("change", () => {
+      void (async () => {
+        const next = await FoxFillPrefs.savePrefs({ darkMode: toggle.checked });
+        FoxFillPrefs.applyTheme(next.darkMode);
+      })();
+    });
+  }
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local" || !changes[FoxFillPrefs.KEY]) return;
+    const dark = Boolean(changes[FoxFillPrefs.KEY].newValue?.darkMode);
+    FoxFillPrefs.applyTheme(dark);
+    if (toggle) toggle.checked = dark;
+  });
+}

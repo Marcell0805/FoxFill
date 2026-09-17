@@ -491,8 +491,31 @@
     });
   }
 
+  async function initTheme() {
+    const toggle = document.getElementById("darkModeToggle");
+    if (typeof FoxFillPrefs === "undefined") return;
+    const prefs = await FoxFillPrefs.loadPrefs();
+    FoxFillPrefs.applyTheme(prefs.darkMode);
+    if (toggle) {
+      toggle.checked = Boolean(prefs.darkMode);
+      toggle.addEventListener("change", () => {
+        void (async () => {
+          const next = await FoxFillPrefs.savePrefs({ darkMode: toggle.checked });
+          FoxFillPrefs.applyTheme(next.darkMode);
+        })();
+      });
+    }
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area !== "local" || !changes[FoxFillPrefs.KEY]) return;
+      const dark = Boolean(changes[FoxFillPrefs.KEY].newValue?.darkMode);
+      FoxFillPrefs.applyTheme(dark);
+      if (toggle) toggle.checked = dark;
+    });
+  }
+
   async function init() {
     bindEvents();
+    await initTheme();
     try {
       const peek = await FoxFillProfiles.peekEncryption();
       if (peek.encrypted) {

@@ -308,3 +308,81 @@ input, select {
     grid-column: auto;
   }
 }
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.theme-toggle input {
+  accent-color: var(--primary);
+  width: 16px;
+  height: 16px;
+}
+
+body.theme-dark {
+  --surface: #0d1a14;
+  --text: #e8efe9;
+  --muted: #b7c9be;
+  --card: #1a2e24;
+  /* Keep --primary as forest brand for the page chrome. */
+  color-scheme: dark;
+}
+
+body.theme-dark .unlock-card,
+body.theme-dark .card,
+body.theme-dark .bottom {
+  background: var(--card);
+  color: var(--text);
+  border-color: rgba(248, 247, 244, 0.1);
+}
+
+body.theme-dark .unlock-card h1,
+body.theme-dark .card h2,
+body.theme-dark .wordmark .fox {
+  color: #f3efe6;
+}
+
+body.theme-dark .unlock-card p,
+body.theme-dark .card-head p,
+body.theme-dark .tag {
+  color: var(--muted);
+}
+
+body.theme-dark input,
+body.theme-dark select,
+body.theme-dark textarea {
+  background: #14241c;
+  color: var(--text);
+  border-color: rgba(248, 247, 244, 0.14);
+}
+
+body.theme-dark .btn-primary {
+  background: #1f4d3a;
+  color: #fff;
+}
+
+body.theme-dark .btn-ghost {
+  background: rgba(248, 247, 244, 0.06);
+  color: var(--text);
+  border-color: rgba(248, 247, 244, 0.14);
+}
+
+body.theme-dark .save-status {
+  background: #1c3d2e;
+  color: #b7dcc8;
+}
+
+body.theme-dark .custom-item {
+  background: rgba(248, 247, 244, 0.04);
+  border-color: rgba(248, 247, 244, 0.1);
+}
+
+body.theme-dark .theme-toggle {
+  color: var(--text);
+}

@@ -23,7 +23,11 @@
 
   function cleanText(value) {
     if (!value) return "";
-    return String(value).replace(/\s+/g, " ").trim();
+    // Strip FoxFill overlay status marks (and similar) so re-scans stay clean.
+    return String(value)
+      .replace(/[\u{1F7E0}-\u{1F7EB}\u{26AA}\u{26AB}]/gu, "")
+      .replace(/\s+/g, " ")
+      .trim();
   }
 
   function truncate(value, max) {

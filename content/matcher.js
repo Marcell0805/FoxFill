@@ -391,7 +391,46 @@
   }
 
   /**
-   * Bare "Date" labels under personal sections are usually DOB
+   * Split controls like form.birthday.day / month / year.
+   */
+  function detectDobPart(fingerprint) {
+    const attr = String(fingerprint.name || fingerprint.id || "");
+    const attrMatch = attr.match(
+      /(?:^|[.\[_\-])(day|month|year|dd|mm|yyyy|yy)(?:$|[\]_])/i
+    );
+    if (attrMatch) {
+      const p = attrMatch[1].toLowerCase();
+      if (p === "day" || p === "dd") return "day";
+      if (p === "month" || p === "mm") return "month";
+      if (p === "year" || p === "yyyy" || p === "yy") return "year";
+    }
+
+    const ctx = normalize(
+      [
+        fingerprint.label,
+        fingerprint.ariaLabel,
+        fingerprint.nearbyText,
+        fingerprint.sectionHeading,
+        fingerprint.name,
+        fingerprint.id,
+        fingerprint.placeholder,
+      ]
+        .filter(Boolean)
+        .join(" ")
+    );
+    if (!/birth|dob|bday/.test(ctx)) return null;
+
+    const title = normalize(
+      fingerprint.label || fingerprint.ariaLabel || fingerprint.placeholder || ""
+    );
+    if (/^(day|dd)\b/.test(title) || title === "day") return "day";
+    if (/^(month|mm)\b/.test(title) || title === "month") return "month";
+    if (/^(year|yyyy|yy)\b/.test(title) || title === "year") return "year";
+    return null;
+  }
+
+  /**
+   * Personal DOB — full date fields or split birthday.day / month / year selects.
    * (bank signature dates are already foreign-section excluded).
    */
   function looksLikePersonalDobField(fingerprint) {
@@ -400,29 +439,32 @@
     const aria = normalize(fingerprint.ariaLabel || "");
     const placeholder = normalize(fingerprint.placeholder || "");
     const section = normalize(fingerprint.sectionHeading || "");
-    const name = normalize(
-      `${fingerprint.name || ""} ${fingerprint.id || ""}`.replace(/[_-]+/g, " ")
-    );
+    const nearby = normalize(fingerprint.nearbyText || "");
+    const name = normalize(`${fingerprint.name || ""} ${fingerprint.id || ""}`);
 
     const title = label || aria;
+    const blob = `${title} ${name} ${placeholder} ${section} ${nearby}`;
+
     const isBareDate =
       title === "date" ||
       title === "date *" ||
       /^date\s*\*?$/.test(title);
 
     const hasDobHint =
-      /birth|dob|bday/.test(`${title} ${name} ${placeholder}`) ||
+      /birthday|birth\s*date|date\s*of\s*birth|\bdob\b|\bbday\b/.test(blob) ||
+      (/birth/.test(blob) && /\b(date|day|month|year)\b/.test(blob)) ||
       /dd|mm|yyyy/.test(placeholder) ||
-      (fingerprint.type || "").toLowerCase() === "date";
+      (fingerprint.type || "").toLowerCase() === "date" ||
+      Boolean(detectDobPart(fingerprint));
 
     const personalSection =
       !section ||
-      /personal|about you|your details|applicant|employee/.test(section);
+      /personal|about you|your details|applicant|employee|learner|sign\s*up|register|account/.test(
+        section
+      );
 
     if (isBareDate && personalSection) return true;
-    if (hasDobHint && personalSection && /date/.test(`${title} ${name}`)) {
-      return true;
-    }
+    if (hasDobHint && personalSection) return true;
     return false;
   }
 
@@ -802,12 +844,16 @@
       (!result.profileKey || result.status === "unmatched") &&
       looksLikePersonalDobField(fingerprint)
     ) {
+      const part = detectDobPart(fingerprint);
       result.status = "will_fill";
       result.profileKey = "dateOfBirth";
-      result.method = "dob_heuristic";
+      result.method = part ? `dob_part_${part}` : "dob_heuristic";
       result.score = Math.max(result.score || 0, SCORE.label);
-      result.reason = "personal date field → date of birth";
+      result.reason = part
+        ? `birthday ${part} control → date of birth`
+        : "personal date field → date of birth";
       result.ambiguousWith = [];
+      result.dobPart = part || null;
       result.datePattern =
         global.FoxFillDateFormat?.detectPattern?.(fingerprint) || "YYYY-MM-DD";
     }
@@ -817,6 +863,9 @@
       result.profileKey === "dateOfBirth" &&
       (result.status === "will_fill" || result.status === "needs_review")
     ) {
+      if (!result.dobPart) {
+        result.dobPart = detectDobPart(fingerprint) || null;
+      }
       result.datePattern =
         result.datePattern ||
         global.FoxFillDateFormat?.detectPattern?.(fingerprint) ||

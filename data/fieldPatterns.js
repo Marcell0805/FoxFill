@@ -252,6 +252,7 @@
         "birth date",
         "birthdate",
         "birthday",
+        "your birth date",
         "dob",
         "d.o.b",
         "d o b",

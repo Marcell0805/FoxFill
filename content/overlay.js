@@ -19,8 +19,8 @@
     return String(value).replace(/"/g, '\\"');
   }
 
-  function clearDots() {
-    document.querySelectorAll(`[${DOT_ATTR}]`).forEach((node) => node.remove());
+  function clearDots(root = document) {
+    root.querySelectorAll(`[${DOT_ATTR}]`).forEach((node) => node.remove());
   }
 
   function clearHighlights() {
@@ -145,33 +145,35 @@
     return null;
   }
 
+  /**
+   * Place a CSS-only status mark beside the control (not emoji inside the label),
+   * so re-scans don't pick up 🟢 characters from label textContent.
+   */
   function placeStatusDot(fieldEl, status) {
-    const label = findLabelElement(fieldEl);
+    const color = statusColor(status);
+    const prev = fieldEl.previousElementSibling;
+    if (prev?.hasAttribute?.(DOT_ATTR)) prev.remove();
+
     const dot = document.createElement("span");
     dot.setAttribute(DOT_ATTR, status);
     dot.setAttribute("aria-hidden", "true");
     dot.title =
       status === "needs_review" ? "FoxFill: maybe / review" : "FoxFill: certain";
-    dot.textContent = `${statusGlyph(status)} `;
     dot.style.cssText = [
-      "display:inline",
-      "margin:0 2px 0 0",
+      "display:inline-block",
+      "width:8px",
+      "height:8px",
+      "margin:0 6px 0 0",
       "padding:0",
       "border:0",
-      "background:transparent",
-      "font-size:0.85em",
-      "line-height:1",
+      `background:${color}`,
+      "border-radius:50%",
       "vertical-align:middle",
+      "flex-shrink:0",
       "pointer-events:none",
       "user-select:none",
     ].join(";");
 
-    if (label) {
-      label.insertBefore(dot, label.firstChild);
-      return;
-    }
-
-    // No label found — sit just before the control.
     fieldEl.parentNode?.insertBefore(dot, fieldEl);
   }
 
@@ -181,7 +183,15 @@
     return "#8A9690";
   }
 
+  function stripStatusMarks(text) {
+    return String(text || "")
+      .replace(/[\u{1F7E0}-\u{1F7EB}\u{26AA}\u{26AB}]/gu, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
   function statusGlyph(status) {
+    // Kept for legend copy only — list rows use CSS circles.
     if (status === "will_fill" || status === "matched") return "🟢";
     if (status === "needs_review") return "🟡";
     return "⚪";
@@ -321,10 +331,17 @@
           line-height: 1.35;
         }
         .mark {
-          margin-right: 4px;
-          font-size: 10px;
-          line-height: 1;
+          display: inline-block;
+          width: 8px;
+          height: 8px;
+          margin-right: 6px;
+          border-radius: 50%;
+          vertical-align: middle;
+          flex-shrink: 0;
         }
+        .mark-certain { background: #22A06B; }
+        .mark-review { background: #E2B203; }
+        .mark-skip { background: #8A9690; }
       </style>
       <div class="panel" part="panel">
         <div class="head">
@@ -333,7 +350,7 @@
         </div>
         <div class="body">
           <p class="sub" id="ffSub">Matched fields on this page.</p>
-          <p class="legend">🟢 Certain &nbsp; 🟡 Review</p>
+          <p class="legend"><span class="mark mark-certain"></span> Certain &nbsp; <span class="mark mark-review"></span> Review</p>
           <div class="chips" id="ffChips"></div>
           <ul class="list" id="ffList"></ul>
           <p class="foot">Fill from the FoxFill popup.</p>
@@ -388,11 +405,13 @@
       const title = document.createElement("div");
       title.className = "row-title";
       const mark = document.createElement("span");
-      mark.className = "mark";
+      mark.className =
+        status === "needs_review"
+          ? "mark mark-review"
+          : "mark mark-certain";
       mark.setAttribute("aria-hidden", "true");
-      mark.textContent = statusGlyph(status);
-      const name = m.label || m.profileLabel || "Field";
-      title.append(mark, document.createTextNode(name));
+      const name = stripStatusMarks(m.label || m.profileLabel || "Field");
+      title.append(mark, document.createTextNode(` ${name}`));
       title.title =
         status === "needs_review" ? `${name} — needs review` : `${name} — certain`;
       const meta = document.createElement("div");

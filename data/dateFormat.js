@@ -100,6 +100,48 @@
     return `${year}-${pad(month)}-${pad(day)}`;
   }
 
+  const MONTH_NAMES = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+
+  /**
+   * Values to try for split DOB selects (day / month / year).
+   * Primary is first; filler walks the list against <option>s.
+   */
+  function datePartCandidates(value, part) {
+    const parts = parseDateParts(value);
+    if (!parts || !part) return [];
+    const { year, month, day } = parts;
+    if (part === "day") {
+      return [String(day), pad(day)];
+    }
+    if (part === "month") {
+      const name = MONTH_NAMES[month - 1] || "";
+      const short = name.slice(0, 3);
+      return [name, short, pad(month), String(month)].filter(Boolean);
+    }
+    if (part === "year") {
+      return [String(year), String(year).slice(-2)];
+    }
+    return [];
+  }
+
+  function formatDatePart(value, part) {
+    const candidates = datePartCandidates(value, part);
+    return candidates[0] || "";
+  }
+
   function toIso(value) {
     const parts = parseDateParts(value);
     if (!parts) return "";
@@ -110,6 +152,8 @@
     detectPattern,
     parseDateParts,
     formatDate,
+    formatDatePart,
+    datePartCandidates,
     toIso,
   };
 })(typeof globalThis !== "undefined" ? globalThis : self);
