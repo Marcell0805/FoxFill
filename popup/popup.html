@@ -256,6 +256,14 @@
             <span>Dark view</span>
           </label>
           <p class="more-copy">Applies to the popup and full settings on this device.</p>
+          <label class="theme-toggle">
+            <input type="checkbox" id="pageButtonToggle" />
+            <span>Page fill button</span>
+          </label>
+          <p class="more-copy" id="pageButtonStatus">
+            Experimental: a small FoxFill icon on websites. Click it to fill matched fields.
+            Chrome will ask for site access when you turn this on.
+          </p>
         </div>
 
         <div class="more-block">
@@ -278,6 +286,9 @@
             <label>Value <input name="value" type="text" /></label>
             <button type="submit" class="btn-primary">Add custom field</button>
           </form>
+          <button type="button" class="btn-primary" id="saveCustomFieldsBtn">
+            Save custom fields
+          </button>
           <p class="save-msg" id="customSaveMsg" hidden>Custom fields saved.</p>
         </div>
 

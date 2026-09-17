@@ -1,9 +1,16 @@
 {
   "manifest_version": 3,
   "name": "FoxFill",
-  "version": "0.9.9",
+  "version": "0.9.13",
   "description": "Your details. Less hassle. Privacy-first form filling from a local profile.",
   "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": ["http://*/*", "https://*/*"],
+  "web_accessible_resources": [
+    {
+      "resources": ["assets/icons/icon48.png"],
+      "matches": ["http://*/*", "https://*/*"]
+    }
+  ],
   "options_ui": {
     "page": "options/options.html",
     "open_in_tab": true

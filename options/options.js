@@ -493,6 +493,8 @@
 
   async function initTheme() {
     const toggle = document.getElementById("darkModeToggle");
+    const pageToggle = document.getElementById("pageButtonToggle");
+    const pageStatus = document.getElementById("pageButtonStatus");
     if (typeof FoxFillPrefs === "undefined") return;
     const prefs = await FoxFillPrefs.loadPrefs();
     FoxFillPrefs.applyTheme(prefs.darkMode);
@@ -505,11 +507,31 @@
         })();
       });
     }
+    if (pageToggle) {
+      pageToggle.checked = Boolean(prefs.pageButton);
+      pageToggle.addEventListener("change", () => {
+        void (async () => {
+          pageToggle.disabled = true;
+          const result = await FoxFillPrefs.setPageButtonEnabled(pageToggle.checked);
+          pageToggle.checked = Boolean(result.enabled);
+          pageToggle.disabled = false;
+          if (pageStatus) {
+            pageStatus.textContent = result.ok
+              ? result.enabled
+                ? "On — open or reload a normal website to see the side icon, then click Fill."
+                : "Off — the page icon is hidden."
+              : result.error || "Couldn’t update page button.";
+          }
+        })();
+      });
+    }
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area !== "local" || !changes[FoxFillPrefs.KEY]) return;
-      const dark = Boolean(changes[FoxFillPrefs.KEY].newValue?.darkMode);
+      const next = changes[FoxFillPrefs.KEY].newValue || {};
+      const dark = Boolean(next.darkMode);
       FoxFillPrefs.applyTheme(dark);
       if (toggle) toggle.checked = dark;
+      if (pageToggle) pageToggle.checked = Boolean(next.pageButton);
     });
   }
 

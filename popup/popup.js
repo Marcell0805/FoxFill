@@ -1190,6 +1190,22 @@ function renderCustomFields() {
 }
 
 async function saveCustomFields() {
+  // Pull latest edits from list inputs (in case change hasn't fired yet).
+  if (customFieldList) {
+    for (const li of customFieldList.querySelectorAll(".custom-item")) {
+      const id = li.dataset.id;
+      const cf = customFields.find((item) => item.id === id);
+      if (!cf) continue;
+      const inputs = li.querySelectorAll("input");
+      if (inputs[0]) cf.value = inputs[0].value;
+      if (inputs[1]) {
+        cf.aliases = inputs[1].value
+          .split(",")
+          .map((a) => a.trim())
+          .filter(Boolean);
+      }
+    }
+  }
   syncActiveIntoStore();
   await persistStore();
   if (customSaveMsg) {
@@ -1444,6 +1460,12 @@ function setupMoreControls() {
   if (customFieldForm) {
     customFieldForm.addEventListener("submit", (event) => {
       void addCustomField(event);
+    });
+  }
+  const saveCustomFieldsBtn = document.getElementById("saveCustomFieldsBtn");
+  if (saveCustomFieldsBtn) {
+    saveCustomFieldsBtn.addEventListener("click", () => {
+      void saveCustomFields();
     });
   }
   if (unlockBtn) {
@@ -1918,6 +1940,8 @@ void loadProfile();
 
 async function initTheme() {
   const toggle = document.getElementById("darkModeToggle");
+  const pageToggle = document.getElementById("pageButtonToggle");
+  const pageStatus = document.getElementById("pageButtonStatus");
   if (typeof FoxFillPrefs === "undefined") return;
   const prefs = await FoxFillPrefs.loadPrefs();
   FoxFillPrefs.applyTheme(prefs.darkMode);
@@ -1930,10 +1954,30 @@ async function initTheme() {
       })();
     });
   }
+  if (pageToggle) {
+    pageToggle.checked = Boolean(prefs.pageButton);
+    pageToggle.addEventListener("change", () => {
+      void (async () => {
+        pageToggle.disabled = true;
+        const result = await FoxFillPrefs.setPageButtonEnabled(pageToggle.checked);
+        pageToggle.checked = Boolean(result.enabled);
+        pageToggle.disabled = false;
+        if (pageStatus) {
+          pageStatus.textContent = result.ok
+            ? result.enabled
+              ? "On — reload open tabs if you don’t see the icon yet, then click it to fill."
+              : "Off — the page icon won’t appear on websites."
+            : result.error || "Couldn’t update page button.";
+        }
+      })();
+    });
+  }
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local" || !changes[FoxFillPrefs.KEY]) return;
-    const dark = Boolean(changes[FoxFillPrefs.KEY].newValue?.darkMode);
+    const next = changes[FoxFillPrefs.KEY].newValue || {};
+    const dark = Boolean(next.darkMode);
     FoxFillPrefs.applyTheme(dark);
     if (toggle) toggle.checked = dark;
+    if (pageToggle) pageToggle.checked = Boolean(next.pageButton);
   });
 }
