@@ -6,6 +6,7 @@ importScripts(
   "../data/prefs.js",
   "../data/crypto.js",
   "../data/profiles.js",
+  "../data/countries.js",
   "../data/phoneParse.js",
   "../data/dateFormat.js",
   "../data/fitValue.js",
@@ -37,6 +38,7 @@ const PAGE_BUTTON_FILE = "content/page-button.js";
 
 const SCAN_FILES = [
   "data/fieldPatterns.js",
+  "data/countries.js",
   "data/phoneParse.js",
   "data/dateFormat.js",
   "data/fitValue.js",
@@ -44,7 +46,12 @@ const SCAN_FILES = [
   "content/scanner.js",
 ];
 
-const FILL_FILES = ["data/phoneParse.js", "data/fitValue.js", "content/filler.js"];
+const FILL_FILES = [
+  "data/countries.js",
+  "data/phoneParse.js",
+  "data/fitValue.js",
+  "content/filler.js",
+];
 
 async function hasPageAccess() {
   return chrome.permissions.contains({ origins: PAGE_ORIGINS });

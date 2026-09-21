@@ -685,6 +685,27 @@ body {
   white-space: nowrap;
 }
 
+.dob-dd-label.is-placeholder {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.country-field .country-dd,
+.country-field .dob-dd {
+  width: 100%;
+}
+
+.country-dd .dob-dd-menu,
+.country-field .dob-dd-menu {
+  max-height: 220px;
+}
+
+.country-dd .dob-dd-options-host,
+.country-field .dob-dd-options-host {
+  max-height: 160px;
+  overflow: auto;
+}
+
 .dob-dd-caret {
   flex-shrink: 0;
   width: 0;

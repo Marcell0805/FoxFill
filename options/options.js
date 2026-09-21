@@ -47,6 +47,13 @@
   const disableEncryptionBtn = document.getElementById("disableEncryptionBtn");
   const lockNowBtn = document.getElementById("lockNowBtn");
   const encryptionError = document.getElementById("encryptionError");
+  const phoneInput = document.getElementById("phoneInput");
+  const countryInput = document.getElementById("countryInput");
+  const countryBtn = document.getElementById("countryBtn");
+  const countryMenu = document.getElementById("countryMenu");
+  const countryDd = document.getElementById("countryDd");
+  const provinceFieldLabel = document.getElementById("provinceFieldLabel");
+  const postalCodeFieldLabel = document.getElementById("postalCodeFieldLabel");
 
   /** @type {Record<string, string>} */
   let profile = emptyProfile();
@@ -56,6 +63,7 @@
   let profileStore = null;
   let vaultLocked = false;
   let saveTimer = 0;
+  let countryReady = false;
 
   function emptyProfile() {
     return Object.fromEntries(PROFILE_KEYS.map((key) => [key, ""]));
@@ -89,6 +97,188 @@
     if (!locked) setUnlockError("");
   }
 
+  function guessDefaultCountry() {
+    const lang =
+      (typeof chrome !== "undefined" && chrome.i18n?.getUILanguage?.()) ||
+      (typeof navigator !== "undefined" && navigator.language) ||
+      "";
+    return (
+      globalThis.FoxFillCountries?.guessCountryFromLocale?.(lang) ||
+      "United States"
+    );
+  }
+
+  function isProfileBlank(data) {
+    return PROFILE_KEYS.every((key) => !String(data?.[key] || "").trim());
+  }
+
+  function seedCountryIfNeeded(data) {
+    if (!data || String(data.country || "").trim()) return false;
+    if (!isProfileBlank(data)) return false;
+    data.country = guessDefaultCountry();
+    return true;
+  }
+
+  function updatePhonePlaceholder(countryName) {
+    if (!phoneInput) return;
+    phoneInput.placeholder =
+      globalThis.FoxFillCountries?.phonePlaceholderForCountry?.(countryName) ||
+      "+…";
+  }
+
+  function updateAddressLabels(countryName) {
+    const labels =
+      globalThis.FoxFillCountries?.addressLabelsForCountry?.(countryName) || {
+        province: "Province",
+        postalCode: "Postal Code",
+      };
+    if (provinceFieldLabel) provinceFieldLabel.textContent = labels.province;
+    if (postalCodeFieldLabel) {
+      postalCodeFieldLabel.textContent = labels.postalCode;
+    }
+  }
+
+  function setCountryButtonLabel(value) {
+    if (!countryBtn) return;
+    const label = countryBtn.querySelector(".country-dd-label");
+    if (!label) return;
+    const text = String(value || "").trim();
+    label.textContent = text || "Select country…";
+    label.classList.toggle("is-placeholder", !text);
+  }
+
+  function setCountryUi(countryName) {
+    const value = String(countryName || "").trim();
+    if (countryInput) countryInput.value = value;
+    setCountryButtonLabel(value);
+    updatePhonePlaceholder(value);
+    updateAddressLabels(value);
+  }
+
+  function closeCountryMenu() {
+    if (!countryDd) return;
+    countryDd.classList.remove("is-open");
+    if (countryBtn) countryBtn.setAttribute("aria-expanded", "false");
+    if (countryMenu) countryMenu.hidden = true;
+  }
+
+  function countryFilterMatch(text, value, query) {
+    const q = String(query || "")
+      .trim()
+      .toLowerCase();
+    if (!q) return true;
+    const label = String(text || "").toLowerCase();
+    const raw = String(value || "").toLowerCase();
+    return label.startsWith(q) || label.includes(q) || raw.startsWith(q);
+  }
+
+  function fillCountryMenu(selected, onPick) {
+    if (!countryMenu) return;
+    countryMenu.innerHTML = "";
+
+    const filterLi = document.createElement("li");
+    filterLi.className = "country-dd-filter-row";
+    const filter = document.createElement("input");
+    filter.type = "search";
+    filter.className = "country-dd-filter";
+    filter.placeholder = "Type to filter…";
+    filter.setAttribute("autocomplete", "off");
+    filter.setAttribute("aria-label", "Filter countries");
+    filterLi.append(filter);
+    countryMenu.append(filterLi);
+
+    const optionsHost = document.createElement("li");
+    optionsHost.className = "country-dd-options-host";
+    const optionsList = document.createElement("ul");
+    optionsList.className = "country-dd-options";
+    optionsHost.append(optionsList);
+    countryMenu.append(optionsHost);
+
+    const countries = globalThis.FoxFillCountries?.listCountries?.() || [];
+    const items = [["", "Select country…"], ...countries.map((c) => [c.name, c.name])];
+
+    function renderOptions(query) {
+      optionsList.innerHTML = "";
+      const q = String(query || "").trim();
+      let shown = 0;
+      for (const [value, text] of items) {
+        if (!value && q) continue;
+        if (value && !countryFilterMatch(text, value, q)) continue;
+        const li = document.createElement("li");
+        const opt = document.createElement("button");
+        opt.type = "button";
+        opt.className = "country-dd-option";
+        opt.setAttribute("role", "option");
+        opt.dataset.value = value;
+        opt.textContent = text;
+        if (value && value === selected) opt.classList.add("is-active");
+        opt.addEventListener("click", (event) => {
+          event.preventDefault();
+          onPick(value);
+          closeCountryMenu();
+        });
+        li.append(opt);
+        optionsList.append(li);
+        shown += 1;
+      }
+      if (!shown) {
+        const empty = document.createElement("li");
+        empty.className = "country-dd-empty";
+        empty.textContent = "No matches";
+        optionsList.append(empty);
+      }
+      const active = optionsList.querySelector(".is-active");
+      if (active) active.scrollIntoView({ block: "nearest" });
+    }
+
+    filter.addEventListener("input", () => renderOptions(filter.value));
+    filter.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        const first = optionsList.querySelector(".country-dd-option");
+        if (first) first.click();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        closeCountryMenu();
+      }
+    });
+    filter.addEventListener("click", (event) => event.stopPropagation());
+    renderOptions("");
+  }
+
+  function openCountryMenu() {
+    if (!countryDd || !countryBtn || !countryMenu) return;
+    const selected = String(countryInput?.value || "").trim();
+    fillCountryMenu(selected, (value) => {
+      setCountryUi(value);
+      profile.country = value;
+    });
+    countryDd.classList.add("is-open");
+    countryBtn.setAttribute("aria-expanded", "true");
+    countryMenu.hidden = false;
+    const filter = countryMenu.querySelector(".country-dd-filter");
+    if (filter) {
+      filter.value = "";
+      filter.dispatchEvent(new Event("input", { bubbles: false }));
+      queueMicrotask(() => filter.focus());
+    }
+  }
+
+  function populateCountrySelect() {
+    if (!countryBtn || !countryMenu || !countryDd || countryReady) return;
+    countryReady = true;
+    setCountryUi(countryInput?.value || "");
+    countryBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      const open = countryDd.classList.contains("is-open");
+      if (open) closeCountryMenu();
+      else openCountryMenu();
+    });
+    document.addEventListener("click", (event) => {
+      if (!event.target.closest(".country-dd")) closeCountryMenu();
+    });
+  }
+
   function readFormIntoProfile(form) {
     if (!form) return;
     const data = new FormData(form);
@@ -104,9 +294,11 @@
       if (!form) continue;
       for (const el of form.elements) {
         if (!el.name || !PROFILE_KEYS.includes(el.name)) continue;
+        if (el.name === "country") continue;
         el.value = profile[el.name] || "";
       }
     }
+    setCountryUi(profile.country || "");
   }
 
   function syncActiveIntoStore() {
@@ -133,9 +325,14 @@
     customFields = FoxFillProfiles.normalizeCustomFields(
       active?.customFields || []
     );
+    const seeded = seedCountryIfNeeded(profile);
     writeProfileIntoForms();
     renderCustomFields();
     updateEncryptionUi();
+    if (seeded) {
+      syncActiveIntoStore();
+      void persistStore();
+    }
   }
 
   function renderProfileSelect() {
@@ -537,6 +734,7 @@
 
   async function init() {
     bindEvents();
+    populateCountrySelect();
     await initTheme();
     try {
       const peek = await FoxFillProfiles.peekEncryption();

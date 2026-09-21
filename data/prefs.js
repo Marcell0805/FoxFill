@@ -4,6 +4,7 @@
 (function initFoxFillPrefs(global) {
   const KEY = "foxfillPrefs";
   const DEFAULTS = { darkMode: false, pageButton: false };
+  /** Must match manifest optional_host_permissions exactly. */
   const PAGE_ORIGINS = ["http://*/*", "https://*/*"];
 
   async function loadPrefs() {
@@ -38,35 +39,25 @@
     doc.body?.classList.toggle("theme-dark", on);
   }
 
-  async function requestPageAccess() {
-    // Prefer already-granted host_permissions (local/unpacked). Optional request
-    // is a fallback for builds that only declare optional_host_permissions.
-    if (await hasPageAccess()) return true;
-    try {
-      return await chrome.permissions.request({ origins: PAGE_ORIGINS });
-    } catch (err) {
-      // Older/stricter Chrome builds may reject wildcard optional requests.
-      try {
-        return await chrome.permissions.request({ origins: ["<all_urls>"] });
-      } catch {
-        throw err;
-      }
-    }
-  }
-
   async function hasPageAccess() {
     try {
-      if (await chrome.permissions.contains({ origins: PAGE_ORIGINS })) return true;
-      return await chrome.permissions.contains({ origins: ["<all_urls>"] });
+      return await chrome.permissions.contains({ origins: PAGE_ORIGINS });
     } catch {
       return false;
     }
   }
 
+  async function requestPageAccess() {
+    if (await hasPageAccess()) return true;
+    // Must be called from a user gesture (toggle click).
+    return chrome.permissions.request({ origins: PAGE_ORIGINS });
+  }
+
   async function dropPageAccess() {
-    // Don't remove required host_permissions — only optional grants.
     try {
-      await chrome.permissions.remove({ origins: ["<all_urls>"] });
+      if (await hasPageAccess()) {
+        await chrome.permissions.remove({ origins: PAGE_ORIGINS });
+      }
     } catch {
       // ignore
     }
@@ -75,7 +66,19 @@
   async function setPageButtonEnabled(enabled) {
     try {
       if (enabled) {
-        const granted = await requestPageAccess();
+        let granted = false;
+        try {
+          granted = await requestPageAccess();
+        } catch (err) {
+          await savePrefs({ pageButton: false });
+          return {
+            ok: false,
+            enabled: false,
+            error:
+              err?.message ||
+              "Couldn’t request site access. Reload the extension and try again.",
+          };
+        }
         if (!granted) {
           await savePrefs({ pageButton: false });
           return {
@@ -108,7 +111,7 @@
         enabled: false,
         error:
           err?.message ||
-          "Couldn’t request site access. Reload the extension on chrome://extensions and try again.",
+          "Couldn’t update page button. Reload the extension on chrome://extensions and try again.",
       };
     }
   }

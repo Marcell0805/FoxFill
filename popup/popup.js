@@ -568,6 +568,13 @@ const dobYearBtn = document.getElementById("dobYearBtn");
 const dobDayMenu = document.getElementById("dobDayMenu");
 const dobMonthMenu = document.getElementById("dobMonthMenu");
 const dobYearMenu = document.getElementById("dobYearMenu");
+const phoneInput = document.getElementById("phoneInput");
+const countryInput = document.getElementById("countryInput");
+const countryBtn = document.getElementById("countryBtn");
+const countryMenu = document.getElementById("countryMenu");
+const countryDd = document.getElementById("countryDd");
+const provinceFieldLabel = document.getElementById("provinceFieldLabel");
+const postalCodeFieldLabel = document.getElementById("postalCodeFieldLabel");
 
 const MONTHS = [
   ["01", "January"],
@@ -817,15 +824,98 @@ function populateDobSelects() {
   });
 }
 
+function guessDefaultCountry() {
+  const lang =
+    (typeof chrome !== "undefined" && chrome.i18n?.getUILanguage?.()) ||
+    (typeof navigator !== "undefined" && navigator.language) ||
+    "";
+  return (
+    globalThis.FoxFillCountries?.guessCountryFromLocale?.(lang) ||
+    "United States"
+  );
+}
+
+function isProfileBlank(data) {
+  return PROFILE_KEYS.every((key) => !String(data?.[key] || "").trim());
+}
+
+function seedCountryIfNeeded(data) {
+  if (!data || String(data.country || "").trim()) return false;
+  if (!isProfileBlank(data)) return false;
+  data.country = guessDefaultCountry();
+  return true;
+}
+
+function updatePhonePlaceholder(countryName) {
+  if (!phoneInput) return;
+  phoneInput.placeholder =
+    globalThis.FoxFillCountries?.phonePlaceholderForCountry?.(countryName) ||
+    "+…";
+}
+
+function updateAddressLabels(countryName) {
+  const labels =
+    globalThis.FoxFillCountries?.addressLabelsForCountry?.(countryName) || {
+      province: "Province",
+      postalCode: "Postal Code",
+    };
+  if (provinceFieldLabel) provinceFieldLabel.textContent = labels.province;
+  if (postalCodeFieldLabel) {
+    postalCodeFieldLabel.textContent = labels.postalCode;
+  }
+}
+
+function setCountryUi(countryName) {
+  const value = String(countryName || "").trim();
+  if (countryInput) countryInput.value = value;
+  if (countryBtn) {
+    setDobButtonLabel(countryBtn, value, "Select country…");
+  }
+  updatePhonePlaceholder(value);
+  updateAddressLabels(value);
+}
+
+function rebuildCountryMenu() {
+  if (!countryMenu) return;
+  const countries = globalThis.FoxFillCountries?.listCountries?.() || [];
+  const items = [["", "Select country…"]];
+  for (const c of countries) {
+    items.push([c.name, c.name]);
+  }
+  const selected = String(countryInput?.value || "").trim();
+  fillDobMenu(countryMenu, items, selected, (value) => {
+    setCountryUi(value);
+    profile.country = value;
+  });
+  setCountryUi(selected);
+}
+
+function populateCountrySelect() {
+  if (!countryBtn || !countryMenu || !countryDd) return;
+  rebuildCountryMenu();
+  countryBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    const open = countryDd.classList.contains("is-open");
+    if (open) closeAllDobMenus();
+    else {
+      rebuildCountryMenu();
+      openDobMenu(countryDd);
+    }
+  });
+}
+
 function fillFormsFromProfile() {
   for (const form of [personalForm, addressForm]) {
     for (const el of form.elements) {
       if (!el.name || !PROFILE_KEYS.includes(el.name)) continue;
       if (el.name === "dateOfBirth") continue;
+      if (el.name === "country") continue;
       el.value = profile[el.name] || "";
     }
   }
   setDobSelectsFromIso(profile.dateOfBirth || "");
+  setCountryUi(profile.country || "");
+  rebuildCountryMenu();
 }
 
 function readFormIntoProfile(form) {
@@ -842,6 +932,7 @@ function readFormIntoProfile(form) {
 }
 
 populateDobSelects();
+populateCountrySelect();
 
 async function loadProfile() {
   // Never show the lock gate unless encryption is actually on and locked.
@@ -978,11 +1069,16 @@ function applyActiveProfileToUi() {
   customFields = FoxFillProfiles.normalizeCustomFields(
     active?.customFields || []
   );
+  const seeded = seedCountryIfNeeded(profile);
   fillFormsFromProfile();
   renderCustomFields();
   updateProfileNudge();
   updateEncryptionUi();
   refreshMatchesForActiveProfile();
+  if (seeded) {
+    syncActiveIntoStore();
+    void persistStore();
+  }
 }
 
 async function persistStore() {
@@ -1639,6 +1735,7 @@ async function scanActiveTab() {
       target: { tabId: tab.id, allFrames: true },
       files: [
         "data/fieldPatterns.js",
+        "data/countries.js",
         "data/phoneParse.js",
         "data/dateFormat.js",
         "data/fitValue.js",
@@ -1834,6 +1931,7 @@ async function fillActiveTab() {
       await chrome.scripting.executeScript({
         target: { tabId: tab.id, frameIds: [frameId] },
         files: [
+          "data/countries.js",
           "data/phoneParse.js",
           "data/fitValue.js",
           "content/filler.js",

@@ -182,7 +182,7 @@
           <label>ID Number <input name="idNumber" type="text" inputmode="numeric" autocomplete="off" /></label>
           <label>Passport Number <input name="passportNumber" type="text" autocomplete="off" /></label>
           <label>Email <input name="email" type="email" /></label>
-          <label>Phone <input name="phone" type="tel" placeholder="+27…" /></label>
+          <label>Phone <input name="phone" type="tel" id="phoneInput" placeholder="+…" /></label>
           <label class="dob-field">
             Date of Birth
             <input type="hidden" name="dateOfBirth" id="dateOfBirth" value="" />
@@ -214,7 +214,7 @@
         </form>
         <p class="save-msg" id="personalSaveMsg" hidden>Saved on this device.</p>
         <p class="profile-hint" id="personalHint">
-          Tip: ID, phone, and title help SA quote forms match cleanly.
+          Tip: ID, phone, and title help quote and signup forms match cleanly.
         </p>
       </section>
 
@@ -237,14 +237,24 @@
           <label>Address Line 2 <input name="addressLine2" type="text" /></label>
           <label>Suburb <input name="suburb" type="text" /></label>
           <label>City <input name="city" type="text" /></label>
-          <label>Province <input name="province" type="text" /></label>
-          <label>Postal Code <input name="postalCode" type="text" /></label>
-          <label>Country <input name="country" type="text" /></label>
+          <label><span id="provinceFieldLabel">Province</span> <input name="province" type="text" /></label>
+          <label><span id="postalCodeFieldLabel">Postal Code</span> <input name="postalCode" type="text" /></label>
+          <label class="country-field">
+            Country
+            <input type="hidden" name="country" id="countryInput" value="" />
+            <div class="dob-dd country-dd" id="countryDd">
+              <button type="button" class="dob-dd-btn" id="countryBtn" aria-haspopup="listbox" aria-expanded="false">
+                <span class="dob-dd-label is-placeholder">Select country…</span>
+                <span class="dob-dd-caret" aria-hidden="true"></span>
+              </button>
+              <ul class="dob-dd-menu" id="countryMenu" role="listbox" hidden></ul>
+            </div>
+          </label>
           <button type="submit" class="btn-primary">Save Profile</button>
         </form>
         <p class="save-msg" id="addressSaveMsg" hidden>Saved on this device.</p>
         <p class="profile-hint" id="addressHint">
-          Suburb + province matter for local address fields.
+          Suburb, city, and region help address fields match.
         </p>
       </section>
 
@@ -360,6 +370,7 @@
       </button>
     </footer>
 
+    <script src="../data/countries.js"></script>
     <script src="../data/phoneParse.js"></script>
     <script src="../data/dateFormat.js"></script>
     <script src="../data/fitValue.js"></script>

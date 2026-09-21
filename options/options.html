@@ -76,7 +76,7 @@
             <label>ID Number <input name="idNumber" type="text" inputmode="numeric" /></label>
             <label>Passport Number <input name="passportNumber" type="text" /></label>
             <label>Email <input name="email" type="email" /></label>
-            <label>Phone <input name="phone" type="tel" placeholder="+27…" /></label>
+            <label>Phone <input name="phone" type="tel" id="phoneInput" placeholder="+…" /></label>
             <label class="span-2">
               Date of Birth
               <input name="dateOfBirth" type="date" id="dateOfBirth" />
@@ -104,9 +104,19 @@
             <label class="span-2">Address Line 2 <input name="addressLine2" type="text" /></label>
             <label>Suburb <input name="suburb" type="text" /></label>
             <label>City <input name="city" type="text" /></label>
-            <label>Province <input name="province" type="text" /></label>
-            <label>Postal Code <input name="postalCode" type="text" /></label>
-            <label class="span-2">Country <input name="country" type="text" /></label>
+            <label><span id="provinceFieldLabel">Province</span> <input name="province" type="text" /></label>
+            <label><span id="postalCodeFieldLabel">Postal Code</span> <input name="postalCode" type="text" /></label>
+            <label class="span-2 country-field">
+              Country
+              <input type="hidden" name="country" id="countryInput" value="" />
+              <div class="country-dd" id="countryDd">
+                <button type="button" class="country-dd-btn" id="countryBtn" aria-haspopup="listbox" aria-expanded="false">
+                  <span class="country-dd-label is-placeholder">Select country…</span>
+                  <span class="country-dd-caret" aria-hidden="true"></span>
+                </button>
+                <ul class="country-dd-menu" id="countryMenu" role="listbox" hidden></ul>
+              </div>
+            </label>
           </form>
         </section>
 
@@ -172,6 +182,7 @@
       </footer>
     </div>
 
+    <script src="../data/countries.js"></script>
     <script src="../data/crypto.js"></script>
     <script src="../data/profiles.js"></script>
     <script src="../data/prefs.js"></script>

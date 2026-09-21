@@ -211,6 +211,7 @@
         "territory",
         "county",
         "state",
+        "region",
       ],
     },
     {
@@ -226,6 +227,8 @@
         "zip code",
         "zipcode",
         "zip",
+        "pin code",
+        "pincode",
       ],
     },
     {

@@ -27,9 +27,10 @@ WHY FOXFILL
 PERMISSIONS (WHY WE ASK)
 • storage — save your profiles on this device (optionally encrypted).
 • activeTab — access the page you open when you scan.
-• scripting — run the scanner and filler only after you click Scan or Fill.
+• scripting — run the scanner and filler after you click Scan, Fill, or the optional page button.
+• Optional site access — only if you turn on the Page fill button; used to show the side icon and fill when you click it.
 
-FoxFill does not scan pages in the background and does not send your profile to a server.
+The Page fill button is off by default. FoxFill does not send your profile to a server.
 
 Made for everyday forms: quotes, registrations, contact pages, and more — less retyping, same privacy mindset.
 
@@ -39,6 +40,7 @@ Made for everyday forms: quotes, registrations, contact pages, and more — less
 3. 03-fill-complete — Fill button / filled form
 4. 04-fill-contact — another filled example
 5. 05-settings — full settings page (local profiles)
+6. 06-page-button — optional side Page fill button
 
 ## Store icon
 Upload: store-icon-128.png (exactly 128×128, no transparency)
@@ -46,7 +48,7 @@ Upload: store-icon-128.png (exactly 128×128, no transparency)
 ## Privacy practices (Chrome Web Store)
 
 ### Single purpose description*
-FoxFill fills web forms from a user-managed profile stored only on the local device. Users scan a page, review matched fields, and choose what to fill.
+FoxFill fills web forms from a user-managed profile stored only on the local device. Users scan a page, review matched fields, and choose what to fill. An optional Page fill button can fill confident matches after an explicit click.
 
 ### storage justification*
 FoxFill stores the user’s form-fill profiles (personal/address details, custom fields, and optional encryption settings) in chrome.storage.local on this device so details can be reused across form scans. No profile data is sent to a remote server.
@@ -55,7 +57,10 @@ FoxFill stores the user’s form-fill profiles (personal/address details, custom
 FoxFill needs temporary access to the active tab when the user opens the extension and clicks Scan or Fill, so it can read form fields on that page and write approved values into empty inputs. Access is only used after an explicit user action on the current tab.
 
 ### scripting justification*
-FoxFill injects its scanner, matcher, and filler scripts into the active page only when the user clicks Scan or Fill. Scripts run on demand to detect form fields, show review highlights, and fill selected empty fields. FoxFill does not inject scripts in the background or on every page load.
+FoxFill injects its scanner, matcher, and filler scripts when the user clicks Scan or Fill in the popup, or clicks the optional Page fill button on a page. Scripts detect form fields, show review highlights when scanning from the popup, and fill selected empty fields. FoxFill does not auto-fill on page load without a user click.
+
+### Host permission justification* (optional — only if declared / granted)
+FoxFill may request optional access to http/https pages only when the user turns on the Page fill button. That access is used to show a small on-page control and, after the user clicks it, to scan the page and fill confidently matched empty fields from the local profile. Profiles are never sent to a remote server. The feature is off by default; denying site access keeps popup Scan/Fill working via activeTab.
 
 ### Remote code
 Select: No, I am not using remote code

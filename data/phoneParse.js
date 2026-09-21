@@ -5,6 +5,9 @@
 (function initFoxFillPhoneParse(global) {
   /** Country name → preferred dial code (E.164 without + stored separately). */
   const COUNTRY_TO_DIAL = {
+    ...(typeof global.FoxFillCountries?.countryToDialMap === "function"
+      ? global.FoxFillCountries.countryToDialMap()
+      : {}),
     "south africa": "27",
     "united kingdom": "44",
     "uk": "44",

@@ -21,9 +21,10 @@ Product rules and roadmap: **[PLAN.md](PLAN.md)**
 
 - `storage` — local profiles (optionally encrypted)
 - `activeTab` — temporary access after you open the popup
-- `scripting` — inject scanner/matcher/filler only on user action
+- `scripting` — inject scanner/matcher/filler on user action
+- `optional_host_permissions` (`http://*/*`, `https://*/*`) — only if you enable the Page fill button
 
-No broad host permissions. FoxFill does not scan pages in the background.
+Popup Scan/Fill works without broad site access. The side button asks Chrome for site access when turned on.
 
 ## Project layout
 
